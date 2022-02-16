@@ -11,7 +11,6 @@ void PeleLM::setThermoPress(const TimeStamp &a_time) {
    for (int lev = 0; lev <= finest_level; ++lev) {
       setThermoPress(lev, a_time);
    }
-
    averageDownRhoRT(a_time);
 }
 
@@ -19,27 +18,18 @@ void PeleLM::setThermoPress(int lev, const TimeStamp &a_time) {
 
    AMREX_ASSERT(a_time == AmrOldTime || a_time == AmrNewTime);
 
-   auto ldata_p = getLevelDataPtr(lev,a_time);
+   auto ldata_p    = getLevelDataPtr(lev,a_time);
+   auto const& sma = ldata_p->state.arrays();
 
-#ifdef AMREX_USE_OMP
-#pragma omp parallel if (Gpu::notInLaunchRegion())
-#endif
+   amrex::ParallelFor(ldata_p->state, [=]
+   AMREX_GPU_DEVICE (int box_no, int i, int j, int k) noexcept
    {
-      for (MFIter mfi(ldata_p->state,TilingIfNotGPU()); mfi.isValid(); ++mfi)
-      {
-         const Box& bx = mfi.tilebox();
-         auto const& rho     = ldata_p->state.const_array(mfi,DENSITY);
-         auto const& rhoY    = ldata_p->state.const_array(mfi,FIRSTSPEC);
-         auto const& T       = ldata_p->state.const_array(mfi,TEMP);
-         auto const& P       = ldata_p->state.array(mfi,RHORT);
-
-         amrex::ParallelFor(bx, [rho, rhoY, T, P]
-         AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-         {
-            getPGivenRTY( i, j, k, rho, rhoY, T, P );
-         });
-      }
-   }
+      getPGivenRTY(i,j,k,
+                   Array4<Real const>(sma[box_no],DENSITY),
+                   Array4<Real const>(sma[box_no],FIRSTSPEC),
+                   Array4<Real const>(sma[box_no],TEMP),
+                   Array4<Real      >(sma[box_no],RHORT));
+   });
 }
 
 void PeleLM::calcDivU(int is_init,
@@ -172,7 +162,7 @@ void PeleLM::calcDivU(int is_init,
 }
 
 void PeleLM::setTemperature(const TimeStamp &a_time) {
-   BL_PROFILE_VAR("PeleLM::setTemperature()", setTemperature);
+   BL_PROFILE("PeleLM::setTemperature()");
 
    AMREX_ASSERT(a_time == AmrOldTime || a_time == AmrNewTime);
 
@@ -186,26 +176,17 @@ void PeleLM::setTemperature(int lev, const TimeStamp &a_time) {
    AMREX_ASSERT(a_time == AmrOldTime || a_time == AmrNewTime);
 
    auto ldata_p = getLevelDataPtr(lev,a_time);
+   auto const& sma = ldata_p->state.arrays();
 
-#ifdef AMREX_USE_OMP
-#pragma omp parallel if (Gpu::notInLaunchRegion())
-#endif
+   amrex::ParallelFor(ldata_p->state, [=]
+   AMREX_GPU_DEVICE (int box_no, int i, int j, int k) noexcept
    {
-      for (MFIter mfi(ldata_p->state,TilingIfNotGPU()); mfi.isValid(); ++mfi)
-      {
-         const Box& bx = mfi.tilebox();
-         auto const& rho     = ldata_p->state.const_array(mfi,DENSITY);
-         auto const& rhoY    = ldata_p->state.const_array(mfi,FIRSTSPEC);
-         auto const& rhoh    = ldata_p->state.const_array(mfi,RHOH);
-         auto const& T       = ldata_p->state.array(mfi,TEMP);
-
-         amrex::ParallelFor(bx, [rho, rhoY, rhoh, T]
-         AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-         {
-            getTfromHY( i, j, k, rho, rhoY, rhoh, T);
-         });
-      }
-   }
+      getTfromHY( i,j,k,
+                  Array4<Real const>(sma[box_no],DENSITY),
+                  Array4<Real const>(sma[box_no],FIRSTSPEC),
+                  Array4<Real const>(sma[box_no],RHOH),
+                  Array4<Real      >(sma[box_no],TEMP));
+   });
 }
 
 void PeleLM::calc_dPdt(const TimeStamp &a_time,
@@ -232,26 +213,20 @@ void PeleLM::calc_dPdt(int lev,
                        const TimeStamp &a_time,
                        MultiFab* a_dPdt)
 {
-
    auto ldata_p = getLevelDataPtr(lev,a_time);
+   auto const& sma    = ldata_p->state.arrays();
+   auto const& dPdtma = a_dPdt->arrays();
 
    // Use new ambient pressure to compute dPdt
    Real p_amb = m_pNew;
 
-#ifdef AMREX_USE_OMP
-#pragma omp parallel if (Gpu::notInLaunchRegion())
-#endif
-   for (MFIter mfi(*a_dPdt,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+   amrex::ParallelFor(ldata_p->state, [=, dt=m_dt, dpdt_fac=m_dpdtFactor]
+   AMREX_GPU_DEVICE (int box_no, int i, int j, int k) noexcept
    {
-      const Box& bx = mfi.tilebox();
-      auto const& dPdt  = a_dPdt->array(mfi);
-      auto const& P     = ldata_p->state.const_array(mfi,RHORT);
-      amrex::ParallelFor(bx, [dPdt, P, p_amb, dt=m_dt, dpdt_fac=m_dpdtFactor]
-      AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-      {
-         dPdt(i,j,k) = (P(i,j,k) - p_amb) / ( dt * P(i,j,k) ) * dpdt_fac;
-      });
-   }
+      auto dPdta = dPdtma[box_no];
+      auto sa    = sma[box_no];
+      dPdta(i,j,k) = (sa(i,j,k,RHORT) - p_amb) / ( dt * sa(i,j,k,RHORT) ) * dpdt_fac;
+   });
 }
 
 Real
