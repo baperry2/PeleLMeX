@@ -128,14 +128,14 @@ void PeleLM::calcDivU(int is_init,
              {
                  divu(i,j,k) = 0.0;
              });
-         } else if (flagfab.getType(bx) != FabType::regular ) {     // EB containing boxes 
+         } else if (flagfab.getType(bx) != FabType::regular ) {     // EB containing boxes
              amrex::ParallelFor(bx, [ rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, flag, leosparm]
              AMREX_GPU_DEVICE (int i, int j, int k) noexcept
              {
                 if ( flag(i,j,k).isCovered() ) {
                     divu(i,j,k) = 0.0;
                 } else {
-                    compute_divu( i, j, k, rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, leosparm );
+                    compute_divu<pele::physics::PhysicsType::eos_type>( i, j, k, rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, leosparm );
                 }
              });
          } else
@@ -144,7 +144,7 @@ void PeleLM::calcDivU(int is_init,
              amrex::ParallelFor(bx, [ rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, leosparm]
              AMREX_GPU_DEVICE (int i, int j, int k) noexcept
              {
-                compute_divu( i, j, k, rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, leosparm );
+                compute_divu<pele::physics::PhysicsType::eos_type>( i, j, k, rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, leosparm );
              });
          }
       }
@@ -290,8 +290,8 @@ PeleLM::adjustPandDivU(std::unique_ptr<AdvanceAdvData> &advData)
             amrex::ParallelFor(bx, [=,pOld=m_pOld,pNew=m_pNew]
             AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
-                Real gammaInv_o = getGammaInv(i,j,k,rhoYo,T_o,leosparm); 
-                Real gammaInv_n = getGammaInv(i,j,k,rhoYn,T_n,leosparm); 
+                Real gammaInv_o = getGammaInv(i,j,k,rhoYo,T_o,leosparm);
+                Real gammaInv_n = getGammaInv(i,j,k,rhoYn,T_n,leosparm);
                 theta(i,j,k) = 0.5 * (gammaInv_o/pOld + gammaInv_n/pNew);
             });
         }
@@ -317,10 +317,10 @@ PeleLM::adjustPandDivU(std::unique_ptr<AdvanceAdvData> &advData)
         // mac_divu is now delta_S
         advData->mac_divu[lev].plus(-Sbar,0,1);
     }
-  
+
     // Compute 1/Volume * int(U_inflow)dA across all boundary faces
     amrex::Real umacFluxBalance = AMREX_D_TERM(  m_domainUmacFlux[0] + m_domainUmacFlux[1],
-                                       + m_domainUmacFlux[2] + m_domainUmacFlux[3],               
+                                       + m_domainUmacFlux[2] + m_domainUmacFlux[3],
                                        + m_domainUmacFlux[4] + m_domainUmacFlux[5]);
     Real divu_vol = umacFluxBalance/m_uncoveredVol;
 

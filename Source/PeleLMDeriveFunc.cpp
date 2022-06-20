@@ -248,7 +248,7 @@ void pelelm_derprogvar (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int 
 {
     AMREX_ASSERT(derfab.box().contains(bx));
     AMREX_ASSERT(statefab.box().contains(bx));
-    AMREX_ASSERT(ncomp == 1); 
+    AMREX_ASSERT(ncomp == 1);
 
     if (a_pelelm->m_C0 < 0.0) amrex::Abort("Progress variable not initialized");
 
@@ -263,22 +263,22 @@ void pelelm_derprogvar (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int 
     amrex::GpuArray<amrex::Real,NUM_SPECIES+1> Cweights;
     for (int n=0; n<NUM_SPECIES+1; ++n) {
         Cweights[n] = a_pelelm->m_Cweights[n];
-    }   
+    }
 
     amrex::ParallelFor(bx, [=,revert=a_pelelm->m_Crevert]
     AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-    {   
+    {
         amrex::Real rho_inv = 1.0_rt / density(i,j,k);
         prog_var(i,j,k) = 0.0_rt;
         for (int n = 0; n<NUM_SPECIES; ++n) {
             prog_var(i,j,k) += ( rhoY(i,j,k,n) * Cweights[n] ) * rho_inv;
-        }   
+        }
         prog_var(i,j,k) += temp(i,j,k) * Cweights[NUM_SPECIES];
         if (revert) {
            prog_var(i,j,k) = 1.0 - ( prog_var(i,j,k) - C0_lcl ) * denom_inv;
         } else {
            prog_var(i,j,k) = ( prog_var(i,j,k) - C0_lcl ) * denom_inv;
-        }   
+        }
     });
 }
 
@@ -333,7 +333,7 @@ void pelelm_derdiffc (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int dc
     amrex::ParallelFor(bx,
     [rhoY,T,rhoD,lambda,mu,ltransparm, leosparm] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
-        getTransportCoeff(i, j, k, rhoY, T, rhoD, lambda, mu, ltransparm, leosparm);
+        getTransportCoeff<pele::physics::PhysicsType::eos_type>(i, j, k, rhoY, T, rhoD, lambda, mu, ltransparm, leosparm);
     });
 }
 
@@ -360,6 +360,6 @@ void pelelm_derlambda (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int d
     amrex::ParallelFor(bx,
     [rhoY,T,rhoD,lambda,mu,ltransparm,leosparm] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
-        getTransportCoeff(i, j, k, rhoY, T, rhoD, lambda, mu, ltransparm, leosparm);
+        getTransportCoeff<pele::physics::PhysicsType::eos_type>(i, j, k, rhoY, T, rhoD, lambda, mu, ltransparm, leosparm);
     });
 }
