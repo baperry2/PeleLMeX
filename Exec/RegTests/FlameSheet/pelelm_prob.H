@@ -19,7 +19,8 @@ void pelelm_initdata(int i, int j, int k,
                      amrex::Array4<amrex::Real> const& /*aux*/,
                      amrex::GeometryData const& geomdata,
                      ProbParm const& prob_parm,
-                     pele::physics::PMF::PmfData::DataContainer const * pmf_data)
+                     pele::physics::PMF::PmfData::DataContainer const * pmf_data,
+                     const pele::physics::eos::EosParm<pele::physics::PhysicsType::eos_type>* eosparm)
 {
     const amrex::Real* prob_lo = geomdata.ProbLo();
     const amrex::Real* prob_hi = geomdata.ProbHi();
@@ -41,11 +42,11 @@ void pelelm_initdata(int i, int j, int k,
     amrex::Real massfrac[NUM_SPECIES] = {0.0};
     amrex::Real pert = 0.0;
 
-    if (prob_parm.pertmag > 0.0) 
+    if (prob_parm.pertmag > 0.0)
     {
 
 #if ( AMREX_SPACEDIM == 2 )
-       pert = prob_parm.pertmag * 
+       pert = prob_parm.pertmag *
              (1.0 * std::sin(2 * Pi * 4 * x / Lx) +
               1.023 * std::sin(2 * Pi * 2 * (x - 0.004598) / Lx) +
               0.945 * std::sin(2 * Pi * 3 * (x - 0.00712435) / Lx) +
@@ -122,7 +123,8 @@ bcnormal(
   const amrex::Real /*time*/,
   amrex::GeometryData const& geomdata,
   ProbParm const& prob_parm,
-  pele::physics::PMF::PmfData::DataContainer const *pmf_data)
+  pele::physics::PMF::PmfData::DataContainer const *pmf_data,
+  const pele::physics::eos::EosParm<pele::physics::PhysicsType::eos_type>* eosparm)
 {
   const amrex::Real* prob_lo = geomdata.ProbLo();
   amrex::GpuArray<amrex::Real, NUM_SPECIES + 4> pmf_vals = {0.0};

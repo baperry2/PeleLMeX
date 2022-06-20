@@ -102,7 +102,7 @@ void PeleLM::MakeNewLevelFromScratch( int lev,
    if ( lev == 0 && m_signDistNeeded) {
       // Set up CC signed distance container to control EB refinement
       m_signedDist0.reset(new MultiFab(grids[lev], dmap[lev], 1, 1, MFInfo(), *m_factory[lev]));
-    
+
       // Estimate the maximum distance we need in terms of level 0 dx:
       Real extentFactor = static_cast<Real>(nErrorBuf(0));
       for (int ilev = 1; ilev <= max_level; ++ilev) {
@@ -358,6 +358,7 @@ void PeleLM::initLevelData(int lev) {
    // Prob/PMF datas
    ProbParm const* lprobparm = prob_parm_d;
    pele::physics::PMF::PmfData::DataContainer const* lpmfdata   = pmf_data.getDeviceData();
+   auto const* leosparm = eos_parms.device_eos_parm();
 
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -377,9 +378,9 @@ void PeleLM::initLevelData(int lev) {
       {
          pelelm_initdata(i, j, k, m_incompressible, state_arr, aux_arr,
 #ifdef PELE_USE_EFIELD
-                         ne_arr, phiV_arr,  
+                         ne_arr, phiV_arr,
 #endif
-                         geomdata, *lprobparm, lpmfdata);
+                         geomdata, *lprobparm, lpmfdata, leosparm);
       });
    }
 
