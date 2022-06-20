@@ -657,13 +657,14 @@ void PeleLM::initLevelDataFromPlt(int a_lev,
           auto eos = pele::physics::PhysicsType::eos(leosparm);
           Real massfrac[NUM_SPECIES] = {0.0};
           Real sumYs = 0.0;
+	  // TODO : is this the best way to Init when species don't add to 1? 
           for (int n = 0; n < NUM_SPECIES; n++){
              massfrac[n] = rhoY_arr(i,j,k,n);
-             if (n != N2_ID) {
-                sumYs += massfrac[n];
-             }
+	     sumYs += massfrac[n];
+          }     
+          for (int n = 0; n < NUM_SPECIES; n++){
+             massfrac[n] /= sumYs;
           }
-          massfrac[N2_ID] = 1.0 - sumYs; 
 
           // Get density
           Real P_cgs = lprobparm->P_mean * 10.0;
