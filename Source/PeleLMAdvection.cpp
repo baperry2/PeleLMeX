@@ -241,6 +241,7 @@ void PeleLM::getScalarAdvForce(std::unique_ptr<AdvanceAdvData> &advData,
       // Get t^{n} data pointer
       auto ldata_p = getLevelDataPtr(lev,AmrOldTime);
       auto ldataR_p = getLevelDataReactPtr(lev);
+      auto const* leosparm = eos_parms.device_eos_parm();
 
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -258,12 +259,12 @@ void PeleLM::getScalarAdvForce(std::unique_ptr<AdvanceAdvData> &advData,
          auto const& extRhoH = m_extSource[lev]->const_array(mfi,RHOH);
          auto const& fY      = advData->Forcing[lev].array(mfi,0);
          auto const& fT      = advData->Forcing[lev].array(mfi,NUM_SPECIES);
-         amrex::ParallelFor(bx, [rho, rhoY, T, dn, ddn, r, fY, fT, extRhoY, extRhoH, dp0dt=m_dp0dt,
+         amrex::ParallelFor(bx, [rho, rhoY, T, dn, ddn, r, fY, fT, extRhoY, extRhoH, leosparm, dp0dt=m_dp0dt,
                                  is_closed_ch=m_closed_chamber, do_react=m_do_react]
          AMREX_GPU_DEVICE (int i, int j, int k) noexcept
          {
             buildAdvectionForcing( i, j, k, rho, rhoY, T, dn, ddn, r, extRhoY, extRhoH,
-                                   dp0dt, is_closed_ch, do_react, fY, fT );
+                                   dp0dt, is_closed_ch, do_react, fY, fT, leosparm );
          });
       }
    }
@@ -530,6 +531,7 @@ void PeleLM::computeScalarAdvTerms(std::unique_ptr<AdvanceAdvData> &advData)
       for (MFIter mfi(ldata_p->state,TilingIfNotGPU()); mfi.isValid(); ++mfi) {
 
          Box const& bx = mfi.tilebox();
+         auto const* leosparm = eos_parms.device_eos_parm();
 
 #ifdef AMREX_USE_EB
          auto const& flagfab = ebfact.getMultiEBCellFlagFab()[mfi];
@@ -550,22 +552,22 @@ void PeleLM::computeScalarAdvTerms(std::unique_ptr<AdvanceAdvData> &advData)
                  });
              } else if (flagfab.getType(ebx) != FabType::regular ) {     // EB containing boxes 
                  const auto& afrac = areafrac[idim]->array(mfi);
-                 amrex::ParallelFor(ebx, [rho, rhoY, T, rhoHm, afrac]
+                 amrex::ParallelFor(ebx, [rho, rhoY, T, rhoHm, afrac, leosparm]
                  AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                  {
                      if (afrac(i,j,k) <= 0.0) {                         // Covered faces
                          rhoHm(i,j,k) = 0.0;
                      } else {
-                         getRHmixGivenTY( i, j, k, rho, rhoY, T, rhoHm );
+                         getRHmixGivenTY( i, j, k, rho, rhoY, T, rhoHm, leosparm );
                      }
                  });
              } else                                                     // Regular boxes
 #endif
              {
-                 amrex::ParallelFor(ebx, [rho, rhoY, T, rhoHm]
+                 amrex::ParallelFor(ebx, [rho, rhoY, T, rhoHm, leosparm]
                  AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                  {
-                     getRHmixGivenTY( i, j, k, rho, rhoY, T, rhoHm );
+                     getRHmixGivenTY( i, j, k, rho, rhoY, T, rhoHm, leosparm );
                  });
              }
          }

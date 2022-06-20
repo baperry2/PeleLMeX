@@ -20,6 +20,7 @@ void PeleLM::setThermoPress(int lev, const TimeStamp &a_time) {
    AMREX_ASSERT(a_time == AmrOldTime || a_time == AmrNewTime);
 
    auto ldata_p = getLevelDataPtr(lev,a_time);
+   auto const* leosparm = eos_parms.device_eos_parm();
 
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -33,10 +34,10 @@ void PeleLM::setThermoPress(int lev, const TimeStamp &a_time) {
          auto const& T       = ldata_p->state.const_array(mfi,TEMP);
          auto const& P       = ldata_p->state.array(mfi,RHORT);
 
-         amrex::ParallelFor(bx, [rho, rhoY, T, P]
+         amrex::ParallelFor(bx, [rho, rhoY, T, P, leosparm]
          AMREX_GPU_DEVICE (int i, int j, int k) noexcept
          {
-            getPGivenRTY( i, j, k, rho, rhoY, T, P );
+            getPGivenRTY( i, j, k, rho, rhoY, T, P, leosparm);
          });
       }
    }
@@ -91,6 +92,8 @@ void PeleLM::calcDivU(int is_init,
       const auto& ebfact = EBFactory(lev);
 #endif
 
+      auto const* leosparm = eos_parms.device_eos_parm();
+
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
@@ -126,22 +129,22 @@ void PeleLM::calcDivU(int is_init,
                  divu(i,j,k) = 0.0;
              });
          } else if (flagfab.getType(bx) != FabType::regular ) {     // EB containing boxes 
-             amrex::ParallelFor(bx, [ rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, flag]
+             amrex::ParallelFor(bx, [ rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, flag, leosparm]
              AMREX_GPU_DEVICE (int i, int j, int k) noexcept
              {
                 if ( flag(i,j,k).isCovered() ) {
                     divu(i,j,k) = 0.0;
                 } else {
-                    compute_divu( i, j, k, rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react );
+                    compute_divu( i, j, k, rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, leosparm );
                 }
              });
          } else
 #endif
          {
-             amrex::ParallelFor(bx, [ rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react]
+             amrex::ParallelFor(bx, [ rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, leosparm]
              AMREX_GPU_DEVICE (int i, int j, int k) noexcept
              {
-                compute_divu( i, j, k, rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react );
+                compute_divu( i, j, k, rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, leosparm );
              });
          }
       }
@@ -188,6 +191,7 @@ void PeleLM::setTemperature(int lev, const TimeStamp &a_time) {
    AMREX_ASSERT(a_time == AmrOldTime || a_time == AmrNewTime);
 
    auto ldata_p = getLevelDataPtr(lev,a_time);
+   auto const* leosparm = eos_parms.device_eos_parm();
 
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -201,10 +205,10 @@ void PeleLM::setTemperature(int lev, const TimeStamp &a_time) {
          auto const& rhoh    = ldata_p->state.const_array(mfi,RHOH);
          auto const& T       = ldata_p->state.array(mfi,TEMP);
 
-         amrex::ParallelFor(bx, [rho, rhoY, rhoh, T]
+         amrex::ParallelFor(bx, [rho, rhoY, rhoh, T, leosparm]
          AMREX_GPU_DEVICE (int i, int j, int k) noexcept
          {
-            getTfromHY( i, j, k, rho, rhoY, rhoh, T);
+            getTfromHY( i, j, k, rho, rhoY, rhoh, T, leosparm);
          });
       }
    }
@@ -268,6 +272,7 @@ PeleLM::adjustPandDivU(std::unique_ptr<AdvanceAdvData> &advData)
 
         auto ldataOld_p = getLevelDataPtr(lev,AmrOldTime);
         auto ldataNew_p = getLevelDataPtr(lev,AmrNewTime);
+        auto const* leosparm = eos_parms.device_eos_parm();
 
         ThetaHalft[lev].reset(new MultiFab(grids[lev], dmap[lev], 1, 0, MFInfo(), *m_factory[lev]));
 
@@ -285,8 +290,8 @@ PeleLM::adjustPandDivU(std::unique_ptr<AdvanceAdvData> &advData)
             amrex::ParallelFor(bx, [=,pOld=m_pOld,pNew=m_pNew]
             AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
-                Real gammaInv_o = getGammaInv(i,j,k,rhoYo,T_o); 
-                Real gammaInv_n = getGammaInv(i,j,k,rhoYn,T_n); 
+                Real gammaInv_o = getGammaInv(i,j,k,rhoYo,T_o,leosparm); 
+                Real gammaInv_n = getGammaInv(i,j,k,rhoYn,T_n,leosparm); 
                 theta(i,j,k) = 0.5 * (gammaInv_o/pOld + gammaInv_n/pNew);
             });
         }

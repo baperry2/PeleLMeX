@@ -217,6 +217,7 @@ void PeleLM::advanceChemistry(int lev,
 #endif
    //VisMF::Write(chemAvgDownIR,"avgDownIRNewBA_Level"+std::to_string(lev)+"_step"+std::to_string(m_nstep));
 
+   auto const* leosparm = eos_parms.device_eos_parm();
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
@@ -283,7 +284,7 @@ void PeleLM::advanceChemistry(int lev,
       } else {
          // Use forcing and averaged down IR to advance species/rhoH/temp
          Real dt_incr     = a_dt;
-         linearChemForcing(bx, rhoY_o, extF_rhoY, temp_o, rhoH_o, extF_rhoH, fcl, avgIR, dt_incr);
+         linearChemForcing(bx, rhoY_o, extF_rhoY, temp_o, rhoH_o, extF_rhoH, fcl, avgIR, dt_incr, leosparm);
       }
 
       // Convert CGS -> MKS
@@ -389,6 +390,7 @@ void PeleLM::computeInstantaneousReactionRate(int lev,
 {
    BL_PROFILE("PeleLM::computeInstantaneousReactionRate()");
    auto ldata_p = getLevelDataPtr(lev,a_time);
+   auto const* leosparm = eos_parms.device_eos_parm();
 
 #ifdef AMREX_USE_EB
    auto const& ebfact = EBFactory(lev);
@@ -415,7 +417,7 @@ void PeleLM::computeInstantaneousReactionRate(int lev,
             rhoYdot(i,j,k,n) = 0.0;
          });
       } else if (flagfab.getType(bx) != FabType::regular ) {     // EB containing boxes 
-         amrex::ParallelFor(bx, [rhoY, rhoH, T, rhoYdot, flag]
+         amrex::ParallelFor(bx, [rhoY, rhoH, T, rhoYdot, flag, leosparm]
          AMREX_GPU_DEVICE (int i, int j, int k) noexcept
          {
             if ( flag(i,j,k).isCovered() ) {
@@ -423,16 +425,16 @@ void PeleLM::computeInstantaneousReactionRate(int lev,
                   rhoYdot(i,j,k,n) = 0.0;
                }
             } else {
-               reactionRateRhoY( i, j, k, rhoY, rhoH, T, rhoYdot );
+               reactionRateRhoY( i, j, k, rhoY, rhoH, T, rhoYdot, leosparm );
             }
          });
       } else
 #endif
       {
-         amrex::ParallelFor(bx, [rhoY, rhoH, T, rhoYdot]
+         amrex::ParallelFor(bx, [rhoY, rhoH, T, rhoYdot, leosparm]
          AMREX_GPU_DEVICE (int i, int j, int k) noexcept
          {
-            reactionRateRhoY( i, j, k, rhoY, rhoH, T, rhoYdot );
+            reactionRateRhoY( i, j, k, rhoY, rhoH, T, rhoYdot, leosparm );
          });
       }
    }
@@ -481,6 +483,7 @@ void PeleLM::getHeatRelease(int a_lev,
 {
     auto ldataNew_p = getLevelDataPtr(a_lev,AmrNewTime);
     auto ldataR_p = getLevelDataReactPtr(a_lev);
+    auto const* leosparm = eos_parms.device_eos_parm();
 
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -496,10 +499,10 @@ void PeleLM::getHeatRelease(int a_lev,
            auto const& T     = ldataNew_p->state.const_array(mfi,TEMP);
            auto const& Hi    = EnthFab.array();
            auto const& HRR   = a_HR->array(mfi);
-           amrex::ParallelFor(bx, [T, Hi, HRR, react]
+           amrex::ParallelFor(bx, [T, Hi, HRR, react, leosparm]
            AMREX_GPU_DEVICE (int i, int j, int k) noexcept 
            {    
-              getHGivenT( i, j, k, T, Hi );
+              getHGivenT( i, j, k, T, Hi, leosparm);
               HRR(i,j,k) = 0.0; 
               for (int n = 0; n < NUM_SPECIES; n++) {
                  HRR(i,j,k) -= Hi(i,j,k,n) * react(i,j,k,n);

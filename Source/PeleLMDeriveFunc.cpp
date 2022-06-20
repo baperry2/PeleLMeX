@@ -70,6 +70,7 @@ void pelelm_dermolefrac (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int
     AMREX_ASSERT(!a_pelelm->m_incompressible);
     auto const in_dat = statefab.array();
     auto       der = derfab.array(dcomp);
+    auto const* leosparm = a_pelelm->eos_parms.device_eos_parm();
     amrex::ParallelFor(bx,
     [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
@@ -79,7 +80,7 @@ void pelelm_dermolefrac (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int
         for (int n = 0; n < NUM_SPECIES; n++) {
            Yt[n] = in_dat(i,j,k,FIRSTSPEC+n) * rhoinv;
         }
-        auto eos = pele::physics::PhysicsType::eos();
+        auto eos = pele::physics::PhysicsType::eos(leosparm);
         eos.Y2X(Yt,Xt);
         for (int n = 0; n < NUM_SPECIES; n++) {
            der(i,j,k,n) = Xt[n];
@@ -328,10 +329,11 @@ void pelelm_derdiffc (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int dc
     auto     lambda  = dummies.array(0);
     auto         mu  = dummies.array(1);
     auto const* ltransparm = a_pelelm->trans_parms.device_trans_parm();
+    auto const* leosparm = a_pelelm->eos_parms.device_eos_parm();
     amrex::ParallelFor(bx,
-    [rhoY,T,rhoD,lambda,mu,ltransparm] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    [rhoY,T,rhoD,lambda,mu,ltransparm, leosparm] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
-        getTransportCoeff(i, j, k, rhoY, T, rhoD, lambda, mu, ltransparm);
+        getTransportCoeff(i, j, k, rhoY, T, rhoD, lambda, mu, ltransparm, leosparm);
     });
 }
 
@@ -354,9 +356,10 @@ void pelelm_derlambda (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int d
     auto     lambda  = derfab.array(dcomp);
     auto         mu  = dummies.array(0);
     auto const* ltransparm = a_pelelm->trans_parms.device_trans_parm();
+    auto const* leosparm = a_pelelm->eos_parms.device_eos_parm();
     amrex::ParallelFor(bx,
-    [rhoY,T,rhoD,lambda,mu,ltransparm] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    [rhoY,T,rhoD,lambda,mu,ltransparm,leosparm] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
-        getTransportCoeff(i, j, k, rhoY, T, rhoD, lambda, mu, ltransparm);
+        getTransportCoeff(i, j, k, rhoY, T, rhoD, lambda, mu, ltransparm, leosparm);
     });
 }

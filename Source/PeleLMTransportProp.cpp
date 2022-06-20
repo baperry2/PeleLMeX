@@ -50,6 +50,7 @@ void PeleLM::calcDiffusivity(const TimeStamp &a_time) {
 
       // Transport data pointer
       auto const* ltransparm = trans_parms.device_trans_parm();
+      auto const* leosparm = eos_parms.device_eos_parm();
 
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -65,14 +66,14 @@ void PeleLM::calcDiffusivity(const TimeStamp &a_time) {
 
          // TODO: unity Lewis
 
-         amrex::ParallelFor(gbx, [rhoY, T, rhoD, lambda, mu, ltransparm]
+         amrex::ParallelFor(gbx, [rhoY, T, rhoD, lambda, mu, ltransparm, leosparm]
          AMREX_GPU_DEVICE (int i, int j, int k) noexcept
          {
-            getTransportCoeff( i, j, k, rhoY, T, rhoD, lambda, mu, ltransparm);
+            getTransportCoeff( i, j, k, rhoY, T, rhoD, lambda, mu, ltransparm, leosparm);
          });
 #ifdef PELE_USE_EFIELD
          auto const& Ks   = ldata_p->mob_cc.array(mfi,0);
-         auto eos = pele::physics::PhysicsType::eos();
+         auto eos = pele::physics::PhysicsType::eos(leosparm);
          Real mwt[NUM_SPECIES] = {0.0};
          eos.molecular_weight(mwt);
          amrex::ParallelFor(gbx, [rhoY, rhoD, T, Ks, mwt, zk=zk]

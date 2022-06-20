@@ -636,6 +636,7 @@ void PeleLM::initLevelDataFromPlt(int a_lev,
    ldata_p->gp.setVal(0.0);
 
    ProbParm const* lprobparm = prob_parm_d;
+   auto const* leosparm = eos_parms.device_eos_parm();
 
    // Enforce rho and rhoH consistent with temperature and mixture
    // TODO the above handles species mapping (to some extent), but nothing enforce
@@ -653,7 +654,7 @@ void PeleLM::initLevelDataFromPlt(int a_lev,
       amrex::ParallelFor(bx, [=]
       AMREX_GPU_DEVICE (int i, int j, int k) noexcept
       {
-          auto eos = pele::physics::PhysicsType::eos();
+          auto eos = pele::physics::PhysicsType::eos(leosparm);
           Real massfrac[NUM_SPECIES] = {0.0};
           Real sumYs = 0.0;
           for (int n = 0; n < NUM_SPECIES; n++){

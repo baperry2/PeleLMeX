@@ -89,6 +89,8 @@ void PeleLM::Setup() {
          pp.query("chem_integrator",m_chem_integrator);
          m_reactor = pele::physics::reactions::ReactorBase::create(m_chem_integrator);
          m_reactor->init(reactor_type, ncells_chem);
+         // Give the eosparm to the reactor
+         m_reactor->set_eos_parm(eos_parms.device_eos_parm());
          // For ReactorNull, we need to also skip instantaneous RR used in divU
          if (m_chem_integrator == "ReactorNull") {
             m_skipInstantRR = 1;
