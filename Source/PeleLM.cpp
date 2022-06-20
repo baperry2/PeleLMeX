@@ -5,6 +5,9 @@ using namespace amrex;
 pele::physics::transport::TransportParams<
   pele::physics::PhysicsType::transport_type>
   PeleLM::trans_parms;
+pele::physics::eos::EosParams<
+  pele::physics::PhysicsType::eos_type>
+  PeleLM::eos_parms;
 
 PeleLM::PeleLM() = default;
 
@@ -15,6 +18,7 @@ PeleLM::~PeleLM()
    }
    
    if (!m_incompressible) {
+      eos_parms.deallocate();
       trans_parms.deallocate();
       m_reactor->close();
    } 

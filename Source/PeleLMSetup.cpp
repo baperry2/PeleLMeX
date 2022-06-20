@@ -76,6 +76,8 @@ void PeleLM::Setup() {
 
    // Initialize EOS and others
    if (!m_incompressible) {
+      amrex::Print() << " Initialization of EOS (CPP)... \n";
+      eos_parms.allocate();
       amrex::Print() << " Initialization of Transport ... \n";
       trans_parms.allocate();
       if (m_do_react) {
