@@ -246,6 +246,11 @@ void PeleLM::readParameters() {
    if (verbose && m_closed_chamber) {
       Print() << " Simulation performed with the closed chamber algorithm \n";
    }
+#ifdef USE_MANIFOLD_EOS
+   if (m_closed_chamber) {
+     amrex::Abort("Simulation with closed chamber not supported for Manifold EOS");
+   }
+#endif
 
 #ifdef PELE_USE_EFIELD
    ParmParse ppef("ef");
