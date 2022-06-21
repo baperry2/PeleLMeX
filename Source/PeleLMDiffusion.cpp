@@ -88,13 +88,13 @@ void PeleLM::computeDifferentialDiffusionTerms(const TimeStamp &a_time,
                        GetVecOfPtrs(diffData->Dn), 0,
                        GetVecOfArrOfPtrs(fluxes), 0,
                        NUM_SPECIES, 1, bcRecSpec_d.dataPtr(), -1.0, m_dt);
-      auto bcRecTemp = fetchBCRecArray(TEMP,1); 
+      auto bcRecTemp = fetchBCRecArray(TEMP,1);
       auto bcRecTemp_d = convertToDeviceVector(bcRecTemp);
       fluxDivergenceRD(GetVecOfConstPtrs(getTempVect(AmrOldTime)), 0,
                        GetVecOfPtrs(diffData->Dn), NUM_SPECIES,
                        GetVecOfArrOfPtrs(fluxes), NUM_SPECIES,
                        1, 1, bcRecTemp_d.dataPtr(), -1.0, m_dt);
-      auto bcRecRhoH = fetchBCRecArray(RHOH,1); 
+      auto bcRecRhoH = fetchBCRecArray(RHOH,1);
       auto bcRecRhoH_d = convertToDeviceVector(bcRecRhoH);
       fluxDivergenceRD(GetVecOfConstPtrs(getRhoHVect(AmrOldTime)), 0,
                        GetVecOfPtrs(diffData->Dn), NUM_SPECIES+1,
@@ -111,13 +111,13 @@ void PeleLM::computeDifferentialDiffusionTerms(const TimeStamp &a_time,
                        GetVecOfPtrs(diffData->Dnp1), 0,
                        GetVecOfArrOfPtrs(fluxes), 0,
                        NUM_SPECIES, 1, bcRecSpec_d.dataPtr(), -1.0, m_dt);
-      auto bcRecTemp = fetchBCRecArray(TEMP,1); 
+      auto bcRecTemp = fetchBCRecArray(TEMP,1);
       auto bcRecTemp_d = convertToDeviceVector(bcRecTemp);
       fluxDivergenceRD(GetVecOfConstPtrs(getTempVect(AmrNewTime)), 0,
                        GetVecOfPtrs(diffData->Dnp1), NUM_SPECIES,
                        GetVecOfArrOfPtrs(fluxes), NUM_SPECIES,
                        1, 1, bcRecTemp_d.dataPtr(), -1.0, m_dt);
-      auto bcRecRhoH = fetchBCRecArray(RHOH,1); 
+      auto bcRecRhoH = fetchBCRecArray(RHOH,1);
       auto bcRecRhoH_d = convertToDeviceVector(bcRecRhoH);
       fluxDivergenceRD(GetVecOfConstPtrs(getRhoHVect(AmrNewTime)), 0,
                        GetVecOfPtrs(diffData->Dnp1), NUM_SPECIES+1,
@@ -197,8 +197,11 @@ void PeleLM::computeDifferentialDiffusionFluxes(const TimeStamp &a_time,
    }
 
    // Adjust species diffusion fluxes to ensure their sum is zero
+   // TODO BAP: Make this more elegant
+#ifndef USE_MANIFOLD_EOS
    adjustSpeciesFluxes(a_fluxes,
                        GetVecOfConstPtrs(getSpeciesVect(a_time)));
+#endif
    //----------------------------------------------------------------
 
    //----------------------------------------------------------------
@@ -509,7 +512,7 @@ void PeleLM::computeSpeciesEnthalpyFlux(const Vector<Array<MultiFab*,AMREX_SPACE
             {
                Hi_arr(i,j,k) = 0.0;
             });
-         } else if (flagfab.getType(gbx) != FabType::regular ) {     // EB containing boxes 
+         } else if (flagfab.getType(gbx) != FabType::regular ) {     // EB containing boxes
             amrex::ParallelFor(gbx, [Temp_arr, Hi_arr, flag, leosparm]
             AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
@@ -555,7 +558,7 @@ void PeleLM::computeSpeciesEnthalpyFlux(const Vector<Array<MultiFab*,AMREX_SPACE
                   enthflux_ar(i,j,k) += spflux_ar(i,j,k,n)*enth_ar(i,j,k,n);
               }
            });
-         } 
+         }
       }
    }
 }
@@ -654,8 +657,11 @@ void PeleLM::differentialDiffusionUpdate(std::unique_ptr<AdvanceAdvData> &advDat
    fillPatchSpecies(AmrNewTime);
 
    // Adjust species diffusion fluxes to ensure their sum is zero
+   // TODO BAP: Make this more elegant
+#ifndef USE_MANIFOLD_EOS
    adjustSpeciesFluxes(GetVecOfArrOfPtrs(fluxes),
                        GetVecOfConstPtrs(getSpeciesVect(AmrNewTime)));
+#endif
 
    // Average down fluxes^{np1,kp1}
    getDiffusionOp()->avgDownFluxes(GetVecOfArrOfPtrs(fluxes),0,NUM_SPECIES);
