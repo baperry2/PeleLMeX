@@ -21,7 +21,7 @@ PeleLM::~PeleLM()
    if (!m_incompressible) {
       eos_parms.deallocate();
 #ifdef USE_MANIFOLD_EOS
-  manfunc_par->deallocate();
+      manfunc_par->deallocate();
 #endif
       trans_parms.deallocate();
       m_reactor->close();

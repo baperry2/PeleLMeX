@@ -134,8 +134,11 @@ void PeleLM::Setup() {
    }
 
    // Mixture fraction & Progress variable
+   // TODO: Take mixture fraction and progress variable if they are manifold coordinates
+#ifndef USE_MANIFOLD_EOS
    initMixtureFraction();
    initProgressVariable();
+#endif
 
    // Initiliaze turbulence injection
    turb_inflow.init(Geom(0));
