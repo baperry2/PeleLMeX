@@ -37,7 +37,7 @@ void PeleLM::computeVelocityAdvTerm(std::unique_ptr<AdvanceAdvData> &advData)
    int add_gradP = 1;
    getVelForces(AmrOldTime,GetVecOfPtrs(divtau),GetVecOfPtrs(velForces),nGrow_force,add_gradP);
 
-   auto bcRecVel = fetchBCRecArray(VELX,AMREX_SPACEDIM); 
+   auto bcRecVel = fetchBCRecArray(VELX,AMREX_SPACEDIM);
    auto bcRecVel_d = convertToDeviceVector(bcRecVel);
    auto AdvTypeVel = fetchAdvTypeArray(VELX,AMREX_SPACEDIM);
    auto AdvTypeVel_d = convertToDeviceVector(AdvTypeVel);
@@ -102,11 +102,11 @@ void PeleLM::computeVelocityAdvTerm(std::unique_ptr<AdvanceAdvData> &advData)
                                                  m_advection_type);
       }
 #ifdef AMREX_USE_EB
-      EB_set_covered_faces(GetArrOfPtrs(fluxes[lev]),0.);   
-      EB_set_covered_faces(GetArrOfPtrs(faces[lev]),0.);   
+      EB_set_covered_faces(GetArrOfPtrs(fluxes[lev]),0.);
+      EB_set_covered_faces(GetArrOfPtrs(faces[lev]),0.);
 #endif
    }
-   
+
    //----------------------------------------------------------------
    // Average down fluxes to ensure C/F consistency
    for (int lev = finest_level; lev > 0; --lev) {
@@ -284,11 +284,11 @@ void PeleLM::computeScalarAdvTerms(std::unique_ptr<AdvanceAdvData> &advData)
    auto bcRecSpec_d = convertToDeviceVector(bcRecSpec);
    auto AdvTypeSpec = fetchAdvTypeArray(FIRSTSPEC,NUM_SPECIES);
    auto AdvTypeSpec_d = convertToDeviceVector(AdvTypeSpec);
-   auto bcRecTemp = fetchBCRecArray(TEMP,1); 
+   auto bcRecTemp = fetchBCRecArray(TEMP,1);
    auto bcRecTemp_d = convertToDeviceVector(bcRecTemp);
    auto AdvTypeTemp = fetchAdvTypeArray(TEMP,1);
    auto AdvTypeTemp_d = convertToDeviceVector(AdvTypeTemp);
-   auto bcRecRhoH = fetchBCRecArray(RHOH,1); 
+   auto bcRecRhoH = fetchBCRecArray(RHOH,1);
    auto bcRecRhoH_d = convertToDeviceVector(bcRecRhoH);
    auto AdvTypeRhoH = fetchAdvTypeArray(RHOH,1);
    auto AdvTypeRhoH_d = convertToDeviceVector(AdvTypeRhoH);
@@ -305,7 +305,7 @@ void PeleLM::computeScalarAdvTerms(std::unique_ptr<AdvanceAdvData> &advData)
 
    //----------------------------------------------------------------
    // Loop over levels and get the fluxes
-   for (int lev = 0; lev <= finest_level; ++lev) { 
+   for (int lev = 0; lev <= finest_level; ++lev) {
 
       // Get level data ptr Old
       auto ldata_p = getLevelDataPtr(lev,AmrOldTime);
@@ -460,16 +460,21 @@ void PeleLM::computeScalarAdvTerms(std::unique_ptr<AdvanceAdvData> &advData)
                  {
                      rho_ed(i,j,k) = 0.0;
                  });
-             } else if (flagfab.getType(ebx) != FabType::regular ) {     // EB containing boxes 
+             } else if (flagfab.getType(ebx) != FabType::regular ) {     // EB containing boxes
                  const auto& afrac = areafrac[idim]->array(mfi);
                  amrex::ParallelFor(ebx, [rho_ed, rhoY_ed, afrac]
                  AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                  {
                      rho_ed(i,j,k) = 0.0;
                      if (afrac(i,j,k) > 0.0) {                         // Uncovered faces
+#ifndef USE_MANIFOLD_EOS
+                       //TODO BAP: Get rid of ifdef for this and below
                          for (int n = 0; n < NUM_SPECIES; n++) {
                             rho_ed(i,j,k) += rhoY_ed(i,j,k,n);
                          }
+#else
+                         rho_ed(i,j,k) = rhoY_ed(i,j,k,NUM_SPECIES-1);
+#endif
                      }
                  });
              } else                                                     // Regular boxes
@@ -478,9 +483,13 @@ void PeleLM::computeScalarAdvTerms(std::unique_ptr<AdvanceAdvData> &advData)
              AMREX_GPU_DEVICE (int i, int j, int k) noexcept
              {
                 rho_ed(i,j,k) = 0.0;
+#ifndef USE_MANIFOLD_EOS
                 for (int n = 0; n < NUM_SPECIES; n++) {
                    rho_ed(i,j,k) += rhoY_ed(i,j,k,n);
                 }
+#else
+                rho_ed(i,j,k) = rhoY_ed(i,j,k,NUM_SPECIES-1);
+#endif
              });
          }
       }
@@ -550,7 +559,7 @@ void PeleLM::computeScalarAdvTerms(std::unique_ptr<AdvanceAdvData> &advData)
                  {
                      rhoHm(i,j,k) = 0.0;
                  });
-             } else if (flagfab.getType(ebx) != FabType::regular ) {     // EB containing boxes 
+             } else if (flagfab.getType(ebx) != FabType::regular ) {     // EB containing boxes
                  const auto& afrac = areafrac[idim]->array(mfi);
                  amrex::ParallelFor(ebx, [rho, rhoY, T, rhoHm, afrac, leosparm]
                  AMREX_GPU_DEVICE (int i, int j, int k) noexcept
@@ -612,7 +621,7 @@ void PeleLM::computeScalarAdvTerms(std::unique_ptr<AdvanceAdvData> &advData)
                                                  m_advection_type);
       }
 #ifdef AMREX_USE_EB
-      EB_set_covered_faces(GetArrOfPtrs(fluxes[lev]),0.);   
+      EB_set_covered_faces(GetArrOfPtrs(fluxes[lev]),0.);
 #endif
    }
 
@@ -722,10 +731,15 @@ void PeleLM::computeScalarAdvTerms(std::unique_ptr<AdvanceAdvData> &advData)
          amrex::ParallelFor(bx, [aofrho, aofrhoY]
          AMREX_GPU_DEVICE (int i, int j, int k) noexcept
          {
+#ifndef USE_MANIFOLD_EOS
+           //TODO BAP: get rid of ifdef here
             aofrho(i,j,k) = 0.0;
             for (int n = 0; n < NUM_SPECIES; n++) {
                aofrho(i,j,k) += aofrhoY(i,j,k,n);
             }
+#else
+            aofrho(i,j,k) = aofrhoY(i,j,k,NUM_SPECIES-1);
+#endif
          });
       }
    }
@@ -783,7 +797,7 @@ void PeleLM::computePassiveAdvTerms(std::unique_ptr<AdvanceAdvData> &advData,
 
    //----------------------------------------------------------------
    // Loop over levels and get the fluxes
-   for (int lev = 0; lev <= finest_level; ++lev) { 
+   for (int lev = 0; lev <= finest_level; ++lev) {
       // Get level data ptr Old
       auto ldata_p = getLevelDataPtr(lev,AmrOldTime);
 
