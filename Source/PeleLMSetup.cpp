@@ -77,9 +77,33 @@ void PeleLM::Setup() {
    // Initialize EOS and others
    if (!m_incompressible) {
       amrex::Print() << " Initialization of EOS (CPP)... \n";
+#ifdef USE_MANIFOLD_EOS
+      amrex::ParmParse pp("manifold");
+      std::string manifold_model;
+      pp.get("model", manifold_model);
+      if(manifold_model == "Table")
+        {
+          manfunc_par.reset(new pele::physics::TabFuncParams());
+          amrex::Print() << " Initialization of Table (CPP)... \n";
+        }
+      else if(manifold_model == "NeuralNet")
+        {
+#ifdef USE_LIBTORCH
+          manfunc_par.reset(new pele::physics::NNFuncParams());
+          amrex::Print() << " Initialization of Neural Net Func. (CPP)... \n";
+#else
+          amrex::Error("Must set USE_LIBTORCH = TRUE to run with neural net manifold model.");
+#endif
+        }
+      manfunc_par->initialize();
+      eos_parms.allocate(manfunc_par->device_manfunc_data());
+      amrex::Print() << " Initialization of Transport ... \n";
+      trans_parms.allocate(manfunc_par->device_manfunc_data());
+#else
       eos_parms.allocate();
       amrex::Print() << " Initialization of Transport ... \n";
       trans_parms.allocate();
+#endif
       if (m_do_react) {
          int reactor_type = 2;
          int ncells_chem = 1;
@@ -133,7 +157,7 @@ void PeleLM::Setup() {
    m_pNew = prob_parm->P_mean;
 
    // Copy problem parameters into device copy
-   Gpu::copy(Gpu::hostToDevice, prob_parm, prob_parm+1,prob_parm_d); 
+   Gpu::copy(Gpu::hostToDevice, prob_parm, prob_parm+1,prob_parm_d);
 }
 
 void PeleLM::readParameters() {
@@ -226,7 +250,7 @@ void PeleLM::readParameters() {
    // Get the phiV bc
    ppef.getarr("phiV_lo_bc",lo_bc_char,0,AMREX_SPACEDIM);
    ppef.getarr("phiV_hi_bc",hi_bc_char,0,AMREX_SPACEDIM);
-   for (int idim = 0; idim < AMREX_SPACEDIM; idim++) 
+   for (int idim = 0; idim < AMREX_SPACEDIM; idim++)
    {
       if (lo_bc_char[idim] == "Interior"){
          m_phiV_bc.setLo(idim,0);
@@ -236,7 +260,7 @@ void PeleLM::readParameters() {
          m_phiV_bc.setLo(idim,2);
       } else {
          amrex::Abort("Wrong PhiV bc. Should be : Interior, Dirichlet or Neumann");
-      }    
+      }
       if (hi_bc_char[idim] == "Interior"){
          m_phiV_bc.setHi(idim,0);
       } else if (hi_bc_char[idim] == "Dirichlet") {
@@ -297,12 +321,12 @@ void PeleLM::readParameters() {
    pp.queryarr("gravity", grav, 0, AMREX_SPACEDIM);
    Vector<Real> gp0(AMREX_SPACEDIM,0);
    pp.queryarr("gradP0", gp0, 0, AMREX_SPACEDIM);
-   for (int idim = 0; idim < AMREX_SPACEDIM; idim++) 
+   for (int idim = 0; idim < AMREX_SPACEDIM; idim++)
    {
       m_background_gp[idim] = gp0[idim];
       m_gravity[idim] = grav[idim];
    }
-   
+
 
    // -----------------------------------------
    // diffusion
@@ -311,7 +335,7 @@ void PeleLM::readParameters() {
    pp.query("deltaT_iterMax",m_deltaTIterMax);
    pp.query("deltaT_tol",m_deltaT_norm_max);
    pp.query("deltaT_crashIfFailing",m_crashOnDeltaTFail);
-  
+
 
    // -----------------------------------------
    // initialization
@@ -358,7 +382,7 @@ void PeleLM::readParameters() {
        m_Godunov_ppm = 0;
    } else {
        Abort("Unknown 'advection_scheme'. Recognized options are: Godunov_PLM, Godunov_PPM or Godunov_BDS");
-   } 
+   }
    m_predict_advection_type = "Godunov";  // Only option at this point. This will disapear when predict_velocity support BDS.
 
    // -----------------------------------------
@@ -409,7 +433,7 @@ void PeleLM::readParameters() {
            m_EB_refine_type != "Adaptive" ) {
          Abort("refine_EB_type can only be 'Static' or 'Adaptive'");
       }
-      // Default EB refinement level is max_level 
+      // Default EB refinement level is max_level
       m_EB_refine_LevMax = max_level;
       pp.query("refine_EB_max_level",m_EB_refine_LevMax);
       pp.query("refine_EB_buffer",m_derefineEBBuffer);
@@ -507,7 +531,7 @@ void PeleLM::variablesSetup() {
    std::string PrettyLine = std::string(78, '=') + "\n";
 
    //----------------------------------------------------------------
-   // Variables ordering is defined through compiler macro in PeleLM_Index.H 
+   // Variables ordering is defined through compiler macro in PeleLM_Index.H
    // Simply print on screen the state layout and append to the stateComponents list
    Print() << "\n";
    Print() << PrettyLine;

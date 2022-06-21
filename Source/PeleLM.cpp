@@ -8,6 +8,7 @@ pele::physics::transport::TransportParams<
 pele::physics::eos::EosParams<
   pele::physics::PhysicsType::eos_type>
   PeleLM::eos_parms;
+std::unique_ptr<pele::physics::ManFuncParams> PeleLM::manfunc_par;
 
 PeleLM::PeleLM() = default;
 
@@ -16,12 +17,15 @@ PeleLM::~PeleLM()
    for (int lev = 0; lev <= finest_level; ++lev) {
       ClearLevel(lev);
    }
-   
+
    if (!m_incompressible) {
       eos_parms.deallocate();
+#ifdef USE_MANIFOLD_EOS
+  manfunc_par->deallocate();
+#endif
       trans_parms.deallocate();
       m_reactor->close();
-   } 
+   }
 
    closeTempFile();
    typical_values.clear();
@@ -39,7 +43,7 @@ PeleLM::LevelData*
 PeleLM::getLevelDataPtr(int lev, const PeleLM::TimeStamp &a_time, int /*useUMac*/)
 {
    AMREX_ASSERT(a_time==AmrOldTime || a_time==AmrNewTime || a_time==AmrHalfTime);
-   if ( a_time == AmrOldTime ) { 
+   if ( a_time == AmrOldTime ) {
       return m_leveldata_old[lev].get();
    } else if ( a_time == AmrNewTime ) {
       return m_leveldata_new[lev].get();
