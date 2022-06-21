@@ -123,15 +123,13 @@ getVelViscosity(int i, int j, int k,
    using namespace amrex::literals;
 
    // Get rho & Y from rhoY
-   amrex::Real rho = 0.0_rt;
-   for (int n = 0; n < NUM_SPECIES; n++) {
-      rho += rhoY(i,j,k,n);
-   }
-   amrex::Real rhoinv = 1.0_rt / rho;
+   amrex::Real rho, rhoinv;
    amrex::Real y[NUM_SPECIES] = {0.0};
+   amrex::Real massdens[NUM_SPECIES];
    for (int n = 0; n < NUM_SPECIES; n++) {
-      y[n] = rhoY(i,j,k,n) * rhoinv;
+      massdens[n] = rhoY(i,j,k,n);
    }
+   pele::physics::PhysicsType::eos_type::RY2RRinvY(massdens, rho, rhoinv, y);
 
    rho *= 1.0e-3_rt;                          // MKS -> CGS conversion
    amrex::Real temp = T(i,j,k);
@@ -781,15 +779,13 @@ reactionRateRhoY(int i, int j, int k,
    auto eos = pele::physics::PhysicsType::eos(eosparm);
 
    // Get rho & Ys from rhoYs.
-   amrex::Real rho = 0.0_rt;
+   amrex::Real rho, rhoinv;
+   amrex::Real y[NUM_SPECIES] = {0.0};
+   amrex::Real massdens[NUM_SPECIES];
    for (int n = 0; n < NUM_SPECIES; n++) {
-      rho += rhoY(i,j,k,n);
+      massdens[n] = rhoY(i,j,k,n);
    }
-   amrex::Real rhoinv = 1.0_rt / rho;
-   amrex::Real y[NUM_SPECIES] = {0.0_rt};
-   for (int n = 0; n < NUM_SPECIES; n++) {
-      y[n] = rhoY(i,j,k,n) * rhoinv;
-   }
+   eos.RY2RRinvY(massdens, rho, rhoinv, y);
 
    // Get T from Y/H.
    amrex::Real Tloc = T(i,j,k);
@@ -848,15 +844,14 @@ linearChemForcing(const amrex::Box& bx,
 
       /* T update with rho, H and Y */
       // Get updated rho
-      amrex::Real rho_loc = 0.0;
-      for (int n = 0; n < NUM_SPECIES; n++) {
-          rho_loc += rY_in(i,j,k,n);
-      }
-      // Get updated Ys
+      amrex::Real rho_loc = 0.0, rho_loc_inv = 0.0;
       amrex::Real Y_loc[NUM_SPECIES] = {0.0};
+      amrex::Real massdens[NUM_SPECIES];
       for (int n = 0; n < NUM_SPECIES; n++) {
-          Y_loc[n] = rY_in(i,j,k,n) / rho_loc;
+        massdens[n] = rY_in(i,j,k,n);
       }
+      pele::physics::PhysicsType::eos_type::RY2RRinvY(massdens, rho_loc, rho_loc_inv, Y_loc);
+
       // Get updated H
       amrex::Real H_loc = rhoH_in(i,j,k,0) / rho_loc;
 
@@ -906,15 +901,13 @@ getGammaInv(int i, int j, int k,
 
    auto eos = pele::physics::PhysicsType::eos(eosparm);
    // Get rho & Y from rhoY
-   amrex::Real rho = 0.0_rt;
-   for (int n = 0; n < NUM_SPECIES; n++) {
-      rho += rhoY(i,j,k,n);
-   }
-   amrex::Real rhoinv = 1.0_rt / rho;
+   amrex::Real rho, rhoinv;
    amrex::Real y[NUM_SPECIES] = {0.0};
+   amrex::Real massdens[NUM_SPECIES];
    for (int n = 0; n < NUM_SPECIES; n++) {
-      y[n] = rhoY(i,j,k,n) * rhoinv;
+      massdens[n] = rhoY(i,j,k,n);
    }
+   pele::physics::PhysicsType::eos_type::RY2RRinvY(massdens, rho, rhoinv, y);
 
    amrex::Real cpmix = 0.0_rt;
    eos.TY2Cp(T(i,j,k), y, cpmix);
