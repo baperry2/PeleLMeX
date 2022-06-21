@@ -334,6 +334,11 @@ void PeleLM::readParameters() {
    // -----------------------------------------
    // diffusion
    pp.query("use_wbar",m_use_wbar);
+#ifdef USE_MANIFOLD_EOS
+   if (m_use_wbar) {
+     amrex::Abort("Use of Wbar fluxes is incompatible with Manifold EOS");
+   }
+#endif
    pp.query("deltaT_verbose",m_deltaT_verbose);
    pp.query("deltaT_iterMax",m_deltaTIterMax);
    pp.query("deltaT_tol",m_deltaT_norm_max);
