@@ -10,7 +10,7 @@ void PeleLM::predictVelocity(std::unique_ptr<AdvanceAdvData>  &advData)
 {
    BL_PROFILE("PeleLM::predictVelocity()");
 
-   // set umac boundaries to zero 
+   // set umac boundaries to zero
    if ( advData->umac[0][0].nGrow() > 0 ) {
       for (int lev=0; lev <= finest_level; ++lev)
       {
@@ -40,7 +40,7 @@ void PeleLM::predictVelocity(std::unique_ptr<AdvanceAdvData>  &advData)
 
    //----------------------------------------------------------------
    // Predict face velocities at t^{n+1/2} with Godunov
-   auto bcRecVel = fetchBCRecArray(VELX,AMREX_SPACEDIM); 
+   auto bcRecVel = fetchBCRecArray(VELX,AMREX_SPACEDIM);
    auto bcRecVel_d = convertToDeviceVector(bcRecVel);
    for (int lev = 0; lev <= finest_level; ++lev) {
 
@@ -106,16 +106,49 @@ void PeleLM::addChiIncrement(int a_sdcIter,
          auto const& chiInc_ar   = chiIncr[lev].const_array(mfi);
          auto const& chi_ar      = advData->chi[lev].array(mfi);
          auto const& mac_divu_ar = advData->mac_divu[lev].array(mfi);
-         amrex::ParallelFor(gbx, [chi_ar, chiInc_ar, mac_divu_ar, a_sdcIter]
-         AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-         {
-            if ( a_sdcIter == 1 ) {
-               chi_ar(i,j,k) = chiInc_ar(i,j,k);
-            } else {
-               chi_ar(i,j,k) += chiInc_ar(i,j,k);
-            }
-            mac_divu_ar(i,j,k) += chi_ar(i,j,k);
-         });
+         if (m_chi_correction_type == "DivuEveryIter") {
+           amrex::ParallelFor(gbx, [chi_ar, chiInc_ar, mac_divu_ar, a_sdcIter]
+                              AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                                   {
+                                     if ( a_sdcIter == 1 ) {
+                                       chi_ar(i,j,k) = chiInc_ar(i,j,k);
+                                     } else {
+                                       chi_ar(i,j,k) += chiInc_ar(i,j,k);
+                                     }
+                                     mac_divu_ar(i,j,k) += chi_ar(i,j,k);
+                                   });
+         } else if (m_chi_correction_type == "DivuFirstIter") {
+           amrex::ParallelFor(gbx, [chi_ar, chiInc_ar, mac_divu_ar, a_sdcIter]
+                              AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                                   {
+                                     if ( a_sdcIter == 1 ) {
+                                       chi_ar(i,j,k) = chiInc_ar(i,j,k) + mac_divu_ar(i,j,k);
+                                     } else {
+                                       chi_ar(i,j,k) += chiInc_ar(i,j,k);
+                                     }
+                                     mac_divu_ar(i,j,k) = chi_ar(i,j,k);
+                                   });
+         } else if (m_chi_correction_type == "NoDivu") {
+           amrex::ParallelFor(gbx, [chi_ar, chiInc_ar, mac_divu_ar, a_sdcIter]
+                              AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                                   {
+                                     if ( a_sdcIter == 1 ) {
+                                       chi_ar(i,j,k) = chiInc_ar(i,j,k);
+                                     } else {
+                                       chi_ar(i,j,k) += chiInc_ar(i,j,k);
+                                     }
+                                     mac_divu_ar(i,j,k) = chi_ar(i,j,k);
+                                   });
+         } else {
+	    amrex::Abort("Invalid chi_correction_type");
+         }
+
+      }
+      if (m_verbose > 1) {
+        amrex::Real max_corr = chiIncr[lev].norm0() * m_dt/m_dpdtFactor;
+        amrex::Print() << "      Level " << lev << " SDC " << a_sdcIter
+                       << ": Calculating Chi corr (" << m_chi_correction_type
+                       << ") max relative P mismatch is " << max_corr << std::endl;
       }
    }
 }
@@ -215,7 +248,7 @@ PeleLM::create_constrained_umac_grown(int a_lev, int a_nGrow,
 
     // Divergence preserving interp
     Interpolater* mapper = &face_divfree_interp;
-    
+
     // Set BCRec for Umac
     Vector<BCRec> bcrec(1);
     for (int idim = 0; idim < AMREX_SPACEDIM; idim++) {
@@ -225,16 +258,16 @@ PeleLM::create_constrained_umac_grown(int a_lev, int a_nGrow,
          } else {
             bcrec[0].setLo(idim,BCType::foextrap);
             bcrec[0].setHi(idim,BCType::foextrap);
-         }    
-    }    
+         }
+    }
     Array<Vector<BCRec>,AMREX_SPACEDIM> bcrecArr = {AMREX_D_DECL(bcrec,bcrec,bcrec)};
-    
+
     PhysBCFunct<GpuBndryFuncFab<umacFill>> crse_bndry_func(*crse_geom, bcrec, umacFill{});
     Array<PhysBCFunct<GpuBndryFuncFab<umacFill>>,AMREX_SPACEDIM> cbndyFuncArr = {AMREX_D_DECL(crse_bndry_func,crse_bndry_func,crse_bndry_func)};
-    
+
     PhysBCFunct<GpuBndryFuncFab<umacFill>> fine_bndry_func(*fine_geom, bcrec, umacFill{});
     Array<PhysBCFunct<GpuBndryFuncFab<umacFill>>,AMREX_SPACEDIM> fbndyFuncArr = {AMREX_D_DECL(fine_bndry_func,fine_bndry_func,fine_bndry_func)};
-    
+
     // Use piecewise constant interpolation in time, so create dummy variable for time
     Real dummy = 0.;
     FillPatchTwoLevels(u_mac_fine, IntVect(a_nGrow), dummy,

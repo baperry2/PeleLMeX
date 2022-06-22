@@ -1128,6 +1128,9 @@ class PeleLM : public amrex::AmrCore {
    amrex::Real m_divu_dtFactor = 0.5;
    amrex::Real m_divu_rhoMin = 0.1;
 
+   // Chi correction
+   std::string m_chi_correction_type = "DivuEveryIter";
+
    // Aux data size
    int m_nAux = 0;
 

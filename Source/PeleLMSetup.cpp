@@ -175,6 +175,10 @@ void PeleLM::readParameters() {
    // -----------------------------------------
    pp.query("run_mode",m_run_mode);
    pp.query("v", m_verbose);
+   pp.query("chi_correction_type", m_chi_correction_type);
+   AMREX_ASSERT(chi_correction_type == "DivuEveryIter" ||
+                chi_correction_type == "DivuFirstIter" ||
+                chi_correction_type == "NoDivu");
 
    // -----------------------------------------
    // Boundary conditions
