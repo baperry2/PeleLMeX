@@ -36,7 +36,7 @@ void pelelm_initdata(int i, int j, int k,
 
     constexpr amrex::Real Pi = 3.14159265358979323846264338327950288;
 
-    auto eos = pele::physics::PhysicsType::eos();
+    auto eos = pele::physics::PhysicsType::eos(eosparm);
     amrex::GpuArray<amrex::Real, NUM_SPECIES + 4> pmf_vals = {0.0};
     amrex::Real molefrac[NUM_SPECIES] = {0.0};
     amrex::Real massfrac[NUM_SPECIES] = {0.0};
@@ -74,12 +74,35 @@ void pelelm_initdata(int i, int j, int k,
     amrex::Real y1 = (z - prob_parm.standoff - 0.5*dx[2] + pert)*100;
     amrex::Real y2 = (z - prob_parm.standoff + 0.5*dx[2] + pert)*100;
 #endif
-
-
     pele::physics::PMF::pmf(pmf_data,y1, y2, pmf_vals);
+    state(i,j,k,TEMP) = pmf_vals[0];
 
-    state(i,j,k,TEMP) = pmf_vals[0];;
+#ifdef USE_MANIFOLD_EOS
+// Setup for manifold EOS
+    for (int n = 0; n < NUM_SPECIES-1; n++){
+      massfrac[n] = pmf_vals[3 + n];
+    }
 
+    state(i,j,k,VELX) = 0;
+#if ( AMREX_SPACEDIM == 2 )
+    state(i,j,k,VELY) = pmf_vals[1]*1e-2;
+#elif ( AMREX_SPACEDIM == 3 )
+    state(i,j,k,VELY) = 0;
+    state(i,j,k,VELZ) = pmf_vals[1]*1e-2;
+#endif
+
+    amrex::Real rho_temp, tmp1, tmp2;
+    eos.PYT2R(tmp1, massfrac, tmp2, rho_temp);
+    rho_temp *= 1.0e3;            // CGS -> MKS conversion
+    state(i,j,k,DENSITY) = rho_temp;
+    state(i,j,k,RHOH) = 0.0; // No RhoH transport in manifold model
+
+    for (int n = 0; n < NUM_SPECIES-1; n++) {
+      state(i,j,k,FIRSTSPEC+n) = massfrac[n] * rho_temp;
+    }
+    state(i,j,k,FIRSTSPEC+NUM_SPECIES-1) = rho_temp;
+#else
+// setup for detailed chem
     for (int n = 0; n < NUM_SPECIES; n++){
       molefrac[n] = pmf_vals[3 + n];
     }
@@ -109,6 +132,7 @@ void pelelm_initdata(int i, int j, int k,
     for (int n = 0; n < NUM_SPECIES; n++) {
        state(i,j,k,FIRSTSPEC+n) = massfrac[n] * state(i,j,k,DENSITY);
     }
+#endif
 }
 
 AMREX_GPU_DEVICE
@@ -131,7 +155,7 @@ bcnormal(
   amrex::Real molefrac[NUM_SPECIES] = {0.0};
   amrex::Real massfrac[NUM_SPECIES] = {0.0};
 
-  auto eos = pele::physics::PhysicsType::eos();
+  auto eos = pele::physics::PhysicsType::eos(eosparm);
   if (sgn == 1) {
     pele::physics::PMF::pmf(pmf_data,prob_lo[idir], prob_lo[idir], pmf_vals);
 
@@ -144,6 +168,8 @@ bcnormal(
 #endif
 
     s_ext[TEMP] = pmf_vals[0];
+
+#ifndef USE_MANIFOLD_EOS
     for (int n = 0; n < NUM_SPECIES; n++){
       molefrac[n] = pmf_vals[3 + n];
     }
@@ -161,6 +187,17 @@ bcnormal(
     for (int n = 0; n < NUM_SPECIES; n++) {
       s_ext[FIRSTSPEC+n] = massfrac[n] * s_ext[DENSITY];
     }
+#else
+    for (int n = 0; n < NUM_SPECIES; n++){
+      massfrac[n] = pmf_vals[3 + n];
+    }
+    s_ext[DENSITY] = pmf_vals[3 + NUM_SPECIES -1] *1.0e3;
+    s_ext[RHOH] = 0.0;
+    for (int n = 0; n < NUM_SPECIES-1; n++) {
+      s_ext[FIRSTSPEC+n] = massfrac[n] * s_ext[DENSITY];
+    }
+    s_ext[FIRSTSPEC+NUM_SPECIES-1] = s_ext[DENSITY];
+#endif
   }
 }
 
