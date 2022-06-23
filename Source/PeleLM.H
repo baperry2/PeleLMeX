@@ -332,6 +332,7 @@ class PeleLM : public amrex::AmrCore {
                     amrex::Vector<amrex::MultiFab const*> const &a_beta);
 
    // Ensure sum of specues diffusion fluxes sum to 0
+   template <typename EOSType>
    void adjustSpeciesFluxes(const amrex::Vector<amrex::Array<amrex::MultiFab*,AMREX_SPACEDIM>> &a_fluxes,
                             amrex::Vector<amrex::MultiFab const*> const &a_spec);
 

@@ -198,10 +198,10 @@ void PeleLM::computeDifferentialDiffusionFluxes(const TimeStamp &a_time,
 
    // Adjust species diffusion fluxes to ensure their sum is zero
    // TODO BAP: Make this more elegant
-#ifndef USE_MANIFOLD_EOS
-   adjustSpeciesFluxes(a_fluxes,
+   //#ifndef USE_MANIFOLD_EOS
+   adjustSpeciesFluxes<pele::physics::PhysicsType::eos_type>(a_fluxes,
                        GetVecOfConstPtrs(getSpeciesVect(a_time)));
-#endif
+   //#endif
    //----------------------------------------------------------------
 
    //----------------------------------------------------------------
@@ -377,8 +377,9 @@ void PeleLM::addWbarTerm(const Vector<Array<MultiFab*,AMREX_SPACEDIM> > &a_spflu
    }
 }
 
-void PeleLM::adjustSpeciesFluxes(const Vector<Array<MultiFab*,AMREX_SPACEDIM> > &a_spfluxes,
-                                 Vector<MultiFab const*> const &a_spec)
+template <typename EOSType>
+void PeleLM::adjustSpeciesFluxes(const Vector<Array<MultiFab*,AMREX_SPACEDIM> > & a_spfluxes,
+                                 Vector<MultiFab const*> const & a_spec)
 {
 
    BL_PROFILE("PeleLM::adjustSpeciesFluxes()");
@@ -471,6 +472,14 @@ void PeleLM::adjustSpeciesFluxes(const Vector<Array<MultiFab*,AMREX_SPACEDIM> > 
          }
       }
    }
+}
+
+template <>
+void PeleLM::adjustSpeciesFluxes<pele::physics::eos::Manifold>(const Vector<Array<MultiFab*,AMREX_SPACEDIM> > & /*a_spfluxes*/,
+                                                               Vector<MultiFab const*> const & /*a_spec*/)
+{
+  // Manifold Model: "Species" don't sum to unity, so no need to adjust the fluxes
+  BL_PROFILE("PeleLM::adjustSpeciesFluxes()");
 }
 
 void PeleLM::computeSpeciesEnthalpyFlux(const Vector<Array<MultiFab*,AMREX_SPACEDIM> > &a_fluxes,
@@ -658,10 +667,10 @@ void PeleLM::differentialDiffusionUpdate(std::unique_ptr<AdvanceAdvData> &advDat
 
    // Adjust species diffusion fluxes to ensure their sum is zero
    // TODO BAP: Make this more elegant
-#ifndef USE_MANIFOLD_EOS
-   adjustSpeciesFluxes(GetVecOfArrOfPtrs(fluxes),
+   //#ifndef USE_MANIFOLD_EOS
+   adjustSpeciesFluxes<pele::physics::PhysicsType::eos_type>(GetVecOfArrOfPtrs(fluxes),
                        GetVecOfConstPtrs(getSpeciesVect(AmrNewTime)));
-#endif
+   //#endif
 
    // Average down fluxes^{np1,kp1}
    getDiffusionOp()->avgDownFluxes(GetVecOfArrOfPtrs(fluxes),0,NUM_SPECIES);
