@@ -1279,4 +1279,7 @@ class PeleLM : public amrex::AmrCore {
 
 void writeBuildInfo();
 
+template <>
+void PeleLM::adjustSpeciesFluxes<pele::physics::eos::Manifold>(const amrex::Vector<amrex::Array<amrex::MultiFab*,AMREX_SPACEDIM>> &a_fluxes,
+                                                       amrex::Vector<amrex::MultiFab const*> const &a_spec);
 #endif
