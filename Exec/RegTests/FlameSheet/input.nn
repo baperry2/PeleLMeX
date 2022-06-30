@@ -12,7 +12,7 @@ peleLM.hi_bc = Interior Outflow
 
 
 #-------------------------AMR CONTROL----------------------------
-amr.n_cell          = 32 128 32      # Level 0 number of cells in each direction
+amr.n_cell          = 32 128 32        # Level 0 number of cells in each direction
 amr.v               = 1                # AMR verbose
 amr.max_level       = 2                # maximum level number allowed
 amr.ref_ratio       = 2 2 2 2          # refinement ratio
@@ -27,7 +27,7 @@ amr.max_grid_size   = 64               # max box size
 prob.P_mean = 101325.0
 prob.standoff = -.03
 prob.pertmag = 0.00005
-pmf.datafile = "prem_drm19_phi1_p1_t298_mani.dat"
+pmf.datafile = "prem_drm19_phi1_p1_t298_mani_nn.dat"
 
 #-------------------------PeleLM CONTROL----------------------------
 peleLM.v = 3
@@ -43,8 +43,8 @@ peleLM.mass_balance = 1
 
 #amr.restart = chk00005
 #amr.check_int = 20
-amr.plot_int = 100
-amr.max_step = 20202
+amr.plot_int = 10
+amr.max_step = 20000
 amr.dt_shrink = 0.01
 amr.stop_time = 0.01
 #amr.stop_time = 1.00
@@ -67,11 +67,21 @@ peleLM.chem_integrator = "ReactorRK64"
 peleLM.use_typ_vals_chem = 1          # Use species/temp typical values in CVODE
 ode.rtol = 1.0e-6                     # Relative tolerance of the chemical solve
 ode.atol = 1.0e-5                     # Absolute tolerance factor applied on typical values
+ode.rk64_nsubsteps_guess = 1
+ode.rk64_nsubsteps_min = 1
 cvode.solve_type = denseAJ_direct     # CVODE Linear solve type (for Newton direction)
 cvode.max_order  = 4                  # CVODE max BDF order.
 
 mac_proj.verbose = 2
+mac_proj.rtol = 1e-8
+mac_proj.atol = 1e-8
 nodal_proj.verbose = 2
+nodal_proj.rtol = 1e-8
+nodal_proj.atol = 1e-8
+diffusion.rtol = 1e-8
+diffusion.atol = 1e-8
+tensor_diffusion.rtol = 1e-8
+tensor_diffusion.atol = 1e-8
 
 #--------------------REFINEMENT CONTROL------------------------
 amr.refinement_indicators = temp
@@ -94,9 +104,10 @@ amr.temp.field_name    = temp
 #amrex.fpe_trap_overflow = 1
 
 #----------------------- Manifold Stuff ----------------------------
-manifold.model = Table
+manifold.model = NeuralNet
 manifold.v = 1
-manifold.filename = prem_drm19_phi1_p1_t298.ctb
+manifold.filename = cmlm_net.pt
+manifold.info_filename = cmlm_net_info.txt
 eos.nominal_pressure_cgs = 1013250.0
 peleLM.use_wbar = 0
 peleLM.chi_correction_type = "DivuFirstIter"

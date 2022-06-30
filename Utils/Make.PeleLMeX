@@ -64,6 +64,22 @@ ifeq ($(Eos_Model),$(filter $(Eos_Model),Manifold))
    DEFINES += -DUSE_MANIFOLD_EOS
 endif
 
+TORCH_LIBPATH = $(LIBTORCH_HOME)/lib
+
+ifeq ($(USE_CUDA),TRUE)
+  TORCH_LIBS = -ltorch -ltorch_cpu -lc10 -lc10_cuda -lcuda 
+else
+  TORCH_LIBS = -ltorch -ltorch_cpu -lc10
+endif
+
+ifeq ($(USE_LIBTORCH), TRUE)
+  DEFINES += -DUSE_LIBTORCH
+	INCLUDE_LOCATIONS += $(LIBTORCH_HOME)/include \
+									 $(LIBTORCH_HOME)/include/torch/csrc/api/include
+	LIBRARY_LOCATIONS += $(TORCH_LIBPATH)
+	LDFLAGS += -Wl,-rpath $(TORCH_LIBPATH) $(TORCH_LIBS)
+endif
+
 # Transport model switches
 ifeq ($(Transport_Model), Simple)
   DEFINES += -DUSE_SIMPLE_TRANSPORT
