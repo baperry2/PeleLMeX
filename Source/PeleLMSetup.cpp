@@ -49,6 +49,24 @@ void PeleLM::Setup() {
    // Setup the state variables
    variablesSetup();
 
+   // Load manifold if needed (must happen before derived setup)
+#ifdef USE_MANIFOLD_EOS
+   amrex::ParmParse pp("manifold");
+   std::string manifold_model;
+   pp.get("model", manifold_model);
+   if(manifold_model == "Table")
+     {
+       manfunc_par.reset(new pele::physics::TabFuncParams());
+       amrex::Print() << " Initialization of Table (CPP)... \n";
+     }
+   else if(manifold_model == "NeuralNet")
+     {
+       manfunc_par.reset(new pele::physics::NNFuncParams());
+       amrex::Print() << " Initialization of Neural Net Func. (CPP)... \n";
+     }
+   manfunc_par->initialize();
+#endif
+
    // Derived variables
    derivedSetup();
 
@@ -78,20 +96,6 @@ void PeleLM::Setup() {
    if (!m_incompressible) {
       amrex::Print() << " Initialization of EOS (CPP)... \n";
 #ifdef USE_MANIFOLD_EOS
-      amrex::ParmParse pp("manifold");
-      std::string manifold_model;
-      pp.get("model", manifold_model);
-      if(manifold_model == "Table")
-        {
-          manfunc_par.reset(new pele::physics::TabFuncParams());
-          amrex::Print() << " Initialization of Table (CPP)... \n";
-        }
-      else if(manifold_model == "NeuralNet")
-        {
-          manfunc_par.reset(new pele::physics::NNFuncParams());
-          amrex::Print() << " Initialization of Neural Net Func. (CPP)... \n";
-        }
-      manfunc_par->initialize();
       eos_parms.allocate(manfunc_par->device_manfunc_data());
       amrex::Print() << " Initialization of Transport ... \n";
       trans_parms.allocate(manfunc_par->device_manfunc_data());
@@ -172,9 +176,9 @@ void PeleLM::readParameters() {
    pp.query("run_mode",m_run_mode);
    pp.query("v", m_verbose);
    pp.query("chi_correction_type", m_chi_correction_type);
-   AMREX_ASSERT(chi_correction_type == "DivuEveryIter" ||
-                chi_correction_type == "DivuFirstIter" ||
-                chi_correction_type == "NoDivu");
+   AMREX_ASSERT(m_chi_correction_type == "DivuEveryIter" ||
+                m_chi_correction_type == "DivuFirstIter" ||
+                m_chi_correction_type == "NoDivu");
 
    // -----------------------------------------
    // Boundary conditions
@@ -750,6 +754,19 @@ void PeleLM::derivedSetup()
       }
       derive_lst.add("mole_fractions",IndexType::TheCellType(),NUM_SPECIES,
                      var_names_massfrac,pelelm_dermolefrac,the_same_box);
+
+#ifdef USE_MANIFOLD_EOS
+      // Output quantities from manifold
+      auto manf_data = &manfunc_par->host_manfunc_data();
+      int nmanivar = manf_data->Nvar;
+      Vector<std::string> var_names_maniout(nmanivar);
+      for (int n = 0 ; n < nmanivar; n++) {
+         std::string nametmp = std::string(&(manf_data->varnames)[n*manf_data->len_str], manf_data->len_str);
+         var_names_maniout[n] = "MANI_" + amrex::trim(nametmp);
+      }
+      derive_lst.add("maniout",IndexType::TheCellType(),nmanivar,
+                     var_names_maniout,pelelm_dermaniout,the_same_box);
+#endif
 
       // Species diffusion coefficients
       for (int n = 0 ; n < NUM_SPECIES; n++) {
