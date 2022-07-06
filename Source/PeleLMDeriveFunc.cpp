@@ -30,6 +30,67 @@ void pelelm_dertemp (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int dco
 }
 
 //
+// Extract output quantities from manifold
+//
+#ifdef USE_MANIFOLD_EOS
+void pelelm_dermaniout (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int dcomp, int ncomp,
+                        const FArrayBox& statefab, const FArrayBox& /*pressfab*/,
+                        const Geometry& /*geomdata*/,
+                        Real /*time*/, const Vector<BCRec>& /*bcrec*/, int /*level*/)
+
+{
+    auto manf_data = &a_pelelm->manfunc_par->host_manfunc_data();
+    int nmanivar = manf_data->Nvar;
+    AMREX_ASSERT(derfab.box().contains(bx));
+    AMREX_ASSERT(statefab.box().contains(bx));
+    AMREX_ASSERT(derfab.nComp() >= dcomp + ncomp);
+    AMREX_ASSERT(statefab.nComp() >= NUM_SPECIES+1);
+    AMREX_ASSERT(ncomp == nmanivar);
+    AMREX_ASSERT(!a_pelelm->m_incompressible);
+    auto const in_dat = statefab.array();
+    auto       der = derfab.array(dcomp);
+    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    {
+        amrex::Real rhoinv = 1.0 / in_dat(i,j,k,DENSITY);
+        amrex::Real maniparm[NUM_SPECIES-1];
+        for (int n = 0; n < NUM_SPECIES - 1; n++) {
+          maniparm[n] = in_dat(i,j,k,FIRSTSPEC+n) * rhoinv;
+        }
+
+        // TODO: revisit this implementation on GPU
+        amrex::Real maniout[nmanivar];
+        int manioutidx[nmanivar];
+        for (int n = 0; n < nmanivar; n++) {
+          manioutidx[n] = n;
+        }
+        std::unique_ptr<pele::physics::ManifoldFunc> manfunc;
+        if(manf_data->manmodel == pele::physics::ManifoldModel::TABLE)
+          {
+            pele::physics::TabFuncParams::TabFuncData* tf_data =
+              static_cast<pele::physics::TabFuncParams::TabFuncData*>(manf_data);
+            manfunc.reset(new pele::physics::TabFunc(tf_data));
+          }
+        else
+          {
+#ifdef USE_LIBTORCH
+            pele::physics::NNFuncParams::NNFuncData* nnf_data =
+              static_cast<pele::physics::NNFuncParams::NNFuncData*>(manf_data);
+            manfunc.reset(new pele::physics::NNFunc(nnf_data));
+#else
+            amrex::Error("Must set USE_LIBTORCH = TRUE to run with neural net manifold model.");
+#endif
+          }
+        manfunc->get_values(nmanivar, manioutidx, maniparm, maniout);
+
+        for (int n = 0; n < nmanivar; n++) {
+          der(i,j,k,n) = maniout[n];
+        }
+    }
+    );
+}
+#endif
+
+//
 // Extract species mass fractions Y_n
 //
 void pelelm_dermassfrac (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int dcomp, int ncomp,
