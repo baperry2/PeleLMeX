@@ -88,12 +88,8 @@ void PeleLM::Setup() {
         }
       else if(manifold_model == "NeuralNet")
         {
-#ifdef USE_LIBTORCH
           manfunc_par.reset(new pele::physics::NNFuncParams());
           amrex::Print() << " Initialization of Neural Net Func. (CPP)... \n";
-#else
-          amrex::Error("Must set USE_LIBTORCH = TRUE to run with neural net manifold model.");
-#endif
         }
       manfunc_par->initialize();
       eos_parms.allocate(manfunc_par->device_manfunc_data());
