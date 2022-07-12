@@ -335,11 +335,6 @@ class PeleLM : public amrex::AmrCore {
    template <typename EOSType>
    void adjustSpeciesFluxes(const amrex::Vector<amrex::Array<amrex::MultiFab*,AMREX_SPACEDIM>> &a_fluxes,
                             amrex::Vector<amrex::MultiFab const*> const &a_spec);
-                            
-   // Ensure species diffusion fluxes sum to 0
-   template <>
-   void adjustSpeciesFluxes<pele::physics::eos::Manifold>(const amrex::Vector<amrex::Array<amrex::MultiFab*,AMREX_SPACEDIM>> &a_fluxes,
-                                                          amrex::Vector<amrex::MultiFab const*> const &a_spec);
 
    // Compute enthalpy flux due to species diffusion
    void computeSpeciesEnthalpyFlux(const amrex::Vector<amrex::Array<amrex::MultiFab*,AMREX_SPACEDIM>> &a_fluxes,
@@ -1281,6 +1276,10 @@ class PeleLM : public amrex::AmrCore {
    std::string m_hypre_namespace_mac = "mac_hypre";
    //-----------------------------------------------------------------------------
 };
+
+template <>
+void PeleLM::adjustSpeciesFluxes<pele::physics::eos::Manifold>(const amrex::Vector<amrex::Array<amrex::MultiFab*,AMREX_SPACEDIM>> &a_fluxes,
+                                                               amrex::Vector<amrex::MultiFab const*> const &a_spec);
 
 void writeBuildInfo();
 
