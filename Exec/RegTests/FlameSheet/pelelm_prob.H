@@ -191,7 +191,9 @@ bcnormal(
     for (int n = 0; n < NUM_SPECIES; n++){
       massfrac[n] = pmf_vals[3 + n];
     }
-    s_ext[DENSITY] = pmf_vals[3 + NUM_SPECIES -1] *1.0e3;
+    amrex::Real P_dummy, rho_cgs;
+    eos.PYT2R(P_dummy, massfrac, s_ext[TEMP], rho_cgs);
+    s_ext[DENSITY] = rho_cgs *1.0e3;
     s_ext[RHOH] = 0.0;
     for (int n = 0; n < NUM_SPECIES-1; n++) {
       s_ext[FIRSTSPEC+n] = massfrac[n] * s_ext[DENSITY];
