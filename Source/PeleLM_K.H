@@ -259,12 +259,13 @@ compute_divu<pele::physics::eos::Manifold>(int i, int j, int k,
    auto eos = pele::physics::PhysicsType::eos(eosparm);
    eos.RY2RRinvY(massdens, rho, rhoinv, y);
    amrex::Real derivs[NUM_SPECIES-1] = {0.0};
-   eos.Y2dRdY(y, derivs);
+   rho /= 1.0e3;  // Unit conversion MKS -> CGS
+   eos.RY2dRdY(rho, y, derivs);
 
    divu(i,j,k) = 0.0;
 
    for (int n = 0; n < NUM_SPECIES-1; n++) {
-     derivs[n] *= 1.0e3;
+     derivs[n] *= 1.0e3; // Unit conversion CGS -> MKS
      divu(i,j,k) += derivs[n] * specDiff(i,j,k,n);
      if (do_react) divu(i,j,k) += derivs[n] * (rhoYdot(i,j,k,n));
      // TODO: deal with extRhoY (below is not correct because derivs are dRho/dY, not dRho/dRhoY)
