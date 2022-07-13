@@ -11,6 +11,13 @@
 // Forward declaration of PeleLM
 class PeleLM;
 
+#ifdef USE_MANIFOLD_EOS
+void pelelm_dermaniout (PeleLM* a_pelelm, const amrex::Box& bx, amrex::FArrayBox& derfab, int dcomp, int ncomp,
+                        const amrex::FArrayBox& statefab, const amrex::FArrayBox& pressfab,
+                        const amrex::Geometry& geomdata,
+                        amrex::Real time, const amrex::Vector<amrex::BCRec> &bcrec, int level);
+#endif
+
 void pelelm_dermassfrac (PeleLM* a_pelelm, const amrex::Box& bx, amrex::FArrayBox& derfab, int dcomp, int ncomp,
                          const amrex::FArrayBox& statefab, const amrex::FArrayBox& pressfab,
                          const amrex::Geometry& geomdata,
