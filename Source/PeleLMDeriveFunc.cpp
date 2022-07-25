@@ -41,12 +41,18 @@ void pelelm_dermaniout (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int 
 {
     auto manf_data = &a_pelelm->manfunc_par->host_manfunc_data();
     int nmanivar = manf_data->Nvar;
+    int manioutidx[nmanivar];
+    for (int n = 0; n < nmanivar; n++) {
+      manioutidx[n] = n;
+    }
+    
     AMREX_ASSERT(derfab.box().contains(bx));
     AMREX_ASSERT(statefab.box().contains(bx));
     AMREX_ASSERT(derfab.nComp() >= dcomp + ncomp);
     AMREX_ASSERT(statefab.nComp() >= NUM_SPECIES+1);
     AMREX_ASSERT(ncomp == nmanivar);
     AMREX_ASSERT(!a_pelelm->m_incompressible);
+    
     auto const in_dat = statefab.array();
     auto       der = derfab.array(dcomp);
     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
@@ -57,30 +63,23 @@ void pelelm_dermaniout (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int 
           maniparm[n] = in_dat(i,j,k,FIRSTSPEC+n) * rhoinv;
         }
 
-        // TODO: revisit this implementation on GPU
-        amrex::Real maniout[nmanivar];
-        int manioutidx[nmanivar];
-        for (int n = 0; n < nmanivar; n++) {
-          manioutidx[n] = n;
-        }
-        std::unique_ptr<pele::physics::ManifoldFunc> manfunc;
+        // TODO: make this more elegant
+        pele::physics::ManifoldFunc* manfunc;
         if(manf_data->manmodel == pele::physics::ManifoldModel::TABLE)
           {
             pele::physics::TabFuncParams::TabFuncData* tf_data =
               static_cast<pele::physics::TabFuncParams::TabFuncData*>(manf_data);
-            manfunc.reset(new pele::physics::TabFunc(tf_data));
+            manfunc = new pele::physics::TabFunc(tf_data);
           }
         else
           {
             pele::physics::NNFuncParams::NNFuncData* nnf_data =
               static_cast<pele::physics::NNFuncParams::NNFuncData*>(manf_data);
-            manfunc.reset(new pele::physics::NNFunc(nnf_data));
+            manfunc = new pele::physics::NNFunc(nnf_data);
           }
-        manfunc->get_values(nmanivar, manioutidx, maniparm, maniout);
-
-        for (int n = 0; n < nmanivar; n++) {
-          der(i,j,k,n) = maniout[n];
-        }
+        manfunc->get_values(nmanivar, manioutidx, maniparm, der.ptr(i,j,k));
+        
+        delete manfunc;
     }
     );
 }
