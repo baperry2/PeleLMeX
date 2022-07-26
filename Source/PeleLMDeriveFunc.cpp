@@ -41,10 +41,6 @@ void pelelm_dermaniout (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int 
 {
     auto manf_data = &a_pelelm->manfunc_par->host_manfunc_data();
     int nmanivar = manf_data->Nvar;
-    int manioutidx[nmanivar];
-    for (int n = 0; n < nmanivar; n++) {
-      manioutidx[n] = n;
-    }
     
     AMREX_ASSERT(derfab.box().contains(bx));
     AMREX_ASSERT(statefab.box().contains(bx));
@@ -77,7 +73,7 @@ void pelelm_dermaniout (PeleLM* a_pelelm, const Box& bx, FArrayBox& derfab, int 
               static_cast<pele::physics::NNFuncParams::NNFuncData*>(manf_data);
             manfunc = new pele::physics::NNFunc(nnf_data);
           }
-        manfunc->get_values(nmanivar, manioutidx, maniparm, der.ptr(i,j,k));
+        manfunc->get_all_values(maniparm, der.ptr(i,j,k));
         
         delete manfunc;
     }
