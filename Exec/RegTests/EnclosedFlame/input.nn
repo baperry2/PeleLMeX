@@ -33,7 +33,8 @@ prob.P_mean = 101325.0
 prob.standoff = -0.0175
 prob.flame_radius = 0.001
 prob.pertmag = 0.0 #0.0002
-pmf.datafile =  "prem_posf10325_phi1_p1_t298_mani_nn.dat"
+#pmf.datafile =  "prem_posf10325_phi1_p1_t298_mani_fgm.dat"
+pmf.datafile =  "prem_posf10325_phi1_p1_t298_mani_cmlm.dat"
 pmf.do_cellAverage = 0
 
 #-------------------------PeleLM CONTROL----------------------------
@@ -58,7 +59,7 @@ amr.dt_shrink = 0.01
 amr.stop_time = 1.0
 #amr.stop_time = 1.00
 amr.cfl = 0.15
-amr.derive_plot_vars = avg_pressure mag_vort mass_fractions maniout
+amr.derive_plot_vars = avg_pressure mag_vort mass_fractions # maniout
 
 # --------------- INPUTS TO CHEMISTRY REACTOR ---------------
 peleLM.chem_integrator = "ReactorRK64"
@@ -110,7 +111,7 @@ peleLM.use_wbar = 0
 peleLM.chi_correction_type = "DivuFirstIter"
 #peleLM.chi_correction_type = "NoDivu"
 eos.has_mani_src = true
-eos.density_lookup_type = inverse
+eos.density_lookup_type = log
 eos.compute_temperature = true
 
 # ----------------------- HIT IC ----------------------------
