@@ -965,6 +965,7 @@ class PeleLM : public amrex::AmrCore {
    amrex::Vector<amrex::MultiFab* > getDivUVect(const PeleLM::TimeStamp &a_time);
    amrex::Vector<amrex::MultiFab* > getDiffusivityVect(const PeleLM::TimeStamp &a_time);
    amrex::Vector<amrex::MultiFab* > getViscosityVect(const PeleLM::TimeStamp &a_time);
+   amrex::Vector<amrex::MultiFab* > getTurbViscosityVect(const PeleLM::TimeStamp &a_time);
    amrex::Vector<amrex::MultiFab* > getIRVect();
 #ifdef PELE_USE_EFIELD
    amrex::Vector<std::unique_ptr<amrex::MultiFab> > getPhiVVect(const PeleLM::TimeStamp &a_time);

@@ -1,6 +1,7 @@
 #include <PeleLM.H>
 #include <PeleLM_K.H>
 #include <pelelm_prob.H>
+#include <DiffusionOp.H>
 #ifdef PELE_USE_EFIELD
 #include <PeleLMEF_K.H>
 #endif
@@ -19,8 +20,31 @@ void PeleLM::calcTurbViscosity(const TimeStamp &a_time) {
      amrex::Print() << "   Computing Turbulent Viscosity with LES model: " << m_les_model << std::endl;
    }
 
+   // TEST TEST TEST
    for (int lev = 0; lev <= finest_level; ++lev) {
+     auto ldata_p = getLevelDataPtr(lev,a_time);
+     ldata_p->visc_turb_cc.setVal(1.2345e67);
+     amrex::Print() << "TEST LEV (" << lev << ") " <<  ldata_p->visc_turb_cc.min(0) << " " << ldata_p->visc_turb_cc.max(0) << std::endl;
+     amrex::Print() << "TEST LEV (" << lev << ") " << ldata_p->visc_turb_cc.min(0,1) << " " << ldata_p->visc_turb_cc.max(0,1) << std::endl;
+   }
 
+   amrex::Vector<amrex::MultiFab> GradVel(finest_level+1);
+   for (int lev = 0; lev <= finest_level; ++lev) {
+     auto ldata_p = getLevelDataPtr(lev,a_time);
+     GradVel[lev].define(ldata_p->state.boxArray(), ldata_p->state.DistributionMap(),
+                         AMREX_SPACEDIM*AMREX_SPACEDIM, 1, MFInfo(), ldata_p->state.Factory());
+   }
+   getDiffusionTensorOp()->computeGradientTensor(GetVecOfPtrs(GradVel), GetVecOfConstPtrs(getVelocityVect(a_time)));
+   
+   for (int lev = 0; lev <= finest_level; ++lev) {
+     auto ldata_p = getLevelDataPtr(lev,a_time);
+     ldata_p->visc_turb_cc.setVal(1.2345e67);
+     amrex::Print() << "POST LEV (" << lev << ") " <<  ldata_p->visc_turb_cc.min(0) << " " << ldata_p->visc_turb_cc.max(0) << std::endl;
+     amrex::Print() << "POST LEV (" << lev << ") " << ldata_p->visc_turb_cc.min(0,1) << " " << ldata_p->visc_turb_cc.max(0,1) << std::endl;
+   }
+     
+   for (int lev = 0; lev <= finest_level; ++lev) {
+                              
      // TODO: Something specieal for EB?
      //       Alternate strategy would be to compute these derivatives with a tensorop
      //       That puts the derivatives at the faces (where we eventually need them)
@@ -32,6 +56,8 @@ void PeleLM::calcTurbViscosity(const TimeStamp &a_time) {
      AMREX_ALWAYS_ASSERT_WITH_MESSAGE(ldata_p->state.nGrow() > ldata_p->visc_turb_cc.nGrow(),
                                       "calcTurbViscosity(): State (velocity) data must be at least one grow cell wider than turbvisc data");
 
+     // TEST TEST TEST
+     
      // MultiArrays and preliminaries
      auto const& sma = ldata_p->state.const_arrays();
      auto const& vma = ldata_p->visc_turb_cc.arrays();

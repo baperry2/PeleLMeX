@@ -599,6 +599,89 @@ DiffusionTensorOp::DiffusionTensorOp (PeleLM* a_pelelm)
    m_apply_op->setDomainBC(m_pelelm->getDiffusionTensorOpBC(Orientation::low,bcRecVel),
                            m_pelelm->getDiffusionTensorOpBC(Orientation::high,bcRecVel));
 
+   // Gradient Operator
+   LPInfo info_gradient;
+#ifdef AMREX_USE_EB
+   m_gradient_op.reset(new MLEBTensorOp(m_pelelm->Geom(0,finest_level),
+                                        m_pelelm->boxArray(0,finest_level),
+                                        m_pelelm->DistributionMap(0,finest_level),
+                                        info_gradient,ebfactVec));
+#else
+   m_gradient_op.reset(new MLTensorOp(m_pelelm->Geom(0,finest_level),
+                                      m_pelelm->boxArray(0,finest_level),
+                                      m_pelelm->DistributionMap(0,finest_level),
+                                      info_gradient));
+#endif
+   m_gradient_op->setMaxOrder(m_mg_maxorder);
+   m_gradient_op->setDomainBC(m_pelelm->getDiffusionTensorOpBC(Orientation::low,bcRecVel),
+                              m_pelelm->getDiffusionTensorOpBC(Orientation::high,bcRecVel));
+}
+
+void DiffusionTensorOp::computeGradientTensor (Vector<MultiFab*> const& a_velgrad,
+                                               Vector<MultiFab const*> const& a_vel)
+{
+   // This function returns the velocity gradient tensor at cell centers
+   // it is computed at face centers but then interpolated to cell centers
+   // 
+   // The derivatives are put in the array with the following order:
+   // component: 0    ,  1    ,  2    ,  3    ,  4    , 5    ,  6    ,  7    ,  8
+   // in 2D:     dU/dx,  dV/dx,  dU/dy,  dV/dy
+   // in 3D:     dU/dx,  dV/dx,  dW/dx,  dU/dy,  dV/dy, dW/dy,  dU/dz,  dV/dz,  dW/dz
+  
+   int finest_level = m_pelelm->finestLevel();
+
+   // Duplicate vel since it may be modified by the TensorOp
+   Vector<MultiFab> vel(finest_level+1);
+   for (int lev = 0; lev <= finest_level; ++lev) {
+      vel[lev].define(a_vel[lev]->boxArray(), a_vel[lev]->DistributionMap(),
+                     AMREX_SPACEDIM, 1, MFInfo(), a_vel[lev]->Factory());
+      MultiFab::Copy(vel[lev], *a_vel[lev], 0, 0, AMREX_SPACEDIM, 1);
+   }
+
+   // The velGrad operator runs on each level seperately
+   for (int lev = 0; lev <= finest_level; ++lev) {
+     amrex::Print() << lev << " " << &vel[lev] << std::endl;
+      // Required in case any BCs are inhomogeneous 
+      m_gradient_op->setLevelBC(lev, &vel[lev]);
+     amrex::Print() << lev << std::endl;
+      // Create temporary multifabs to store gradients on faces
+      const auto& ba = a_velgrad[lev]->boxArray();
+      const auto& dm = a_velgrad[lev]->DistributionMap();
+      const auto& factory = a_velgrad[lev]->Factory();
+      const int ncomp = AMREX_SPACEDIM*AMREX_SPACEDIM;
+      Array<MultiFab,AMREX_SPACEDIM> tmpgrad_ec{AMREX_D_DECL(MultiFab(amrex::convert(ba,IntVect::TheDimensionVector(0)),
+                                                                      dm, ncomp, 7, MFInfo(), factory),
+                                                             MultiFab(amrex::convert(ba,IntVect::TheDimensionVector(1)),
+                                                                      dm, ncomp, 1, MFInfo(), factory),
+                                                             MultiFab(amrex::convert(ba,IntVect::TheDimensionVector(2)),
+                                                                      dm, ncomp, 1, MFInfo(), factory))};
+
+      tmpgrad_ec[0].setVal(1.2345e67);
+      // Compute the velocity gradient on faces
+      std::cout << "TEST 0 " << tmpgrad_ec[0].min(0) << " - " << tmpgrad_ec[0].max(0)  << std::endl;
+      std::cout << "TEST 1 " << tmpgrad_ec[0].min(1) << " - " << tmpgrad_ec[0].max(1)  << std::endl;
+      std::cout << "TEST 2 " << tmpgrad_ec[0].min(2) << " - " << tmpgrad_ec[0].max(2)  << std::endl;
+      std::cout << "TEST 3 " << tmpgrad_ec[0].min(3) << " - " << tmpgrad_ec[0].max(3)  << std::endl;
+      std::cout << "TEST 0 " << tmpgrad_ec[0].min(0,7) << " - " << tmpgrad_ec[0].max(0,7)  << std::endl;
+      std::cout << "TEST 1 " << tmpgrad_ec[0].min(1,7) << " - " << tmpgrad_ec[0].max(1,7)  << std::endl;
+      std::cout << "TEST 2 " << tmpgrad_ec[0].min(2,7) << " - " << tmpgrad_ec[0].max(2,7)  << std::endl;
+      std::cout << "TEST 3 " << tmpgrad_ec[0].min(3,7) << " - " << tmpgrad_ec[0].max(3,7)  << std::endl;
+      
+      m_gradient_op->compVelGrad(lev, GetArrOfPtrs(tmpgrad_ec), vel[lev], MLLinOp::Location::FaceCenter);
+
+      std::cout << "TEST 0 " << tmpgrad_ec[0].min(0) << " - " << tmpgrad_ec[0].max(0)  << std::endl;
+      std::cout << "TEST 1 " << tmpgrad_ec[0].min(1) << " - " << tmpgrad_ec[0].max(1)  << std::endl;
+      std::cout << "TEST 2 " << tmpgrad_ec[0].min(2) << " - " << tmpgrad_ec[0].max(2)  << std::endl;
+      std::cout << "TEST 3 " << tmpgrad_ec[0].min(3) << " - " << tmpgrad_ec[0].max(3)  << std::endl;
+      std::cout << "TEST 0 " << tmpgrad_ec[0].min(0,1) << " - " << tmpgrad_ec[0].max(0,1)  << std::endl;
+      std::cout << "TEST 1 " << tmpgrad_ec[0].min(1,1) << " - " << tmpgrad_ec[0].max(1,1)  << std::endl;
+      std::cout << "TEST 2 " << tmpgrad_ec[0].min(2,1) << " - " << tmpgrad_ec[0].max(2,1)  << std::endl;
+      std::cout << "TEST 3 " << tmpgrad_ec[0].min(3,1) << " - " << tmpgrad_ec[0].max(3,1)  << std::endl;
+      // Interpolate to cell centers
+      // Do we need the EB equivalent here
+      // Need the gradient with one grow cell
+      average_face_to_cellcenter(*a_velgrad[lev], 0, GetArrOfConstPtrs(tmpgrad_ec));
+   }
 }
 
 void DiffusionTensorOp::compute_divtau (Vector<MultiFab*> const& a_divtau,

@@ -218,6 +218,22 @@ PeleLM::getDiffusivityVect(const TimeStamp &a_time) {
 }
 
 Vector<MultiFab *>
+PeleLM::getTurbViscosityVect(const TimeStamp &a_time) {
+   Vector<MultiFab*> r;
+   r.reserve(finest_level+1);
+   if ( a_time == AmrOldTime ) {
+      for (int lev = 0; lev <= finest_level; ++lev) {
+         r.push_back(&(m_leveldata_old[lev]->visc_turb_cc));
+      }
+   } else {
+      for (int lev = 0; lev <= finest_level; ++lev) {
+         r.push_back(&(m_leveldata_new[lev]->visc_turb_cc));
+      }
+   }
+   return r;
+}
+
+Vector<MultiFab *>
 PeleLM::getViscosityVect(const TimeStamp &a_time) {
    Vector<MultiFab*> r;
    r.reserve(finest_level+1);

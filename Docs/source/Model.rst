@@ -145,4 +145,30 @@ and simplified velocity constraint,
 
      \nabla \cdot \boldsymbol{u} = \delta S - \delta \theta \frac{\overline S}{\overline \theta} .
 
-    
+     
+Diffusive Transport
+^^^^^^^^^^^^^^^^^^^
+
+For closure of the diffusive species flux (:math:`\boldsymbol{\mathcal{F}}_{m}`), `PeleLMeX` supports both mixture-averaged transport and unity Lewis number transport, with the former being the default. In the mixture-averaged approach, the species diffusive flux is computed
+
+.. math::
+
+   \boldsymbol{\mathcal{F}}_{m} = - \rho D_{m,mix} \nabla X_m = - \rho D_{m,mix} \frac{W}{W_m} \nabla Y_m - \rho D_{m_mix} \frac{Y_m}{W_m} \nabla W
+
+where the mixture-averaged diffusivity :math:`D_{m,mix}` is defined
+
+.. math::
+   
+   D_{m,mix} = \frac{1-Y_m}{\sum_{j \neq m} X_j / D_{m,j}}
+
+and :math:`D_{m,j}` is the binary diffusion coefficient between species :math:`m` and :math:`j`. The chain rule and the relationship :math:`X_m = (W/W_m)Y_m` have been applied to derive the second form of the equation above, which is more amenable to implicit solution . A correction term is added to ensure that the sum of diffusive fluxes is zero.
+
+In the unity Lewis number approach, diffusive fluxes are computed
+
+.. math::
+
+   \boldsymbol{\mathcal{F}}_{m} = \rho D_{m,mix} \nabla Y_m 
+
+
+Large Eddy Simulation
+~~~~~~~~~~~~~~~~~~~~~
