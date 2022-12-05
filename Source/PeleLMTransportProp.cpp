@@ -28,13 +28,85 @@ void PeleLM::calcTurbViscosity(const TimeStamp &a_time) {
      amrex::Print() << "TEST LEV (" << lev << ") " << ldata_p->visc_turb_cc.min(0,1) << " " << ldata_p->visc_turb_cc.max(0,1) << std::endl;
    }
 
-   amrex::Vector<amrex::MultiFab> GradVel(finest_level+1);
+   // Create temporary multifabs to store data at faces,
+   // which is where we compute the turbulent viscosity
+   // we need the density and velocity gradient tensor as inputs
+   amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> mut_fc(finest_level+1);
+   amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> dens_fc(finest_level+1);
+   amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> GradVel(finest_level+1);
    for (int lev = 0; lev <= finest_level; ++lev) {
      auto ldata_p = getLevelDataPtr(lev,a_time);
-     GradVel[lev].define(ldata_p->state.boxArray(), ldata_p->state.DistributionMap(),
-                         AMREX_SPACEDIM*AMREX_SPACEDIM, 1, MFInfo(), ldata_p->state.Factory());
+     const auto& ba = ldata_p->state.boxArray();
+     const auto& dm = ldata_p->state.DistributionMap();
+     const auto& factory = ldata_p->state.Factory();
+     constexpr int ncomp = AMREX_SPACEDIM*AMREX_SPACEDIM;
+     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+       GradVel[lev][idim].define(amrex::convert(ba,IntVect::TheDimensionVector(idim)), dm,
+                                 ncomp, 0, MFInfo(), factory);
+       mut_fc[lev][idim].define(amrex::convert(ba,IntVect::TheDimensionVector(idim)), dm,
+                                1, 0, MFInfo(), factory);
+       dens_fc[lev][idim].define(amrex::convert(ba,IntVect::TheDimensionVector(idim)), dm,
+                                 1, 0, MFInfo(), factory);
+       if (m_incompressible) dens_fc[lev][idim].setVal(m_rho);
+     }
+     if (!m_incompressible) {
+       // this function really just interpolates CCs to FCs
+       int doZeroVisc = 0;
+       auto bcRec = fetchBCRecArray(DENSITY,1);
+       dens_fc[lev] = getDiffusivity(lev,DENSITY,1,doZeroVisc,{bcRec},ldata_p->state);
+     }
    }
-   getDiffusionTensorOp()->computeGradientTensor(GetVecOfPtrs(GradVel), GetVecOfConstPtrs(getVelocityVect(a_time)));
+   
+   // compute the velocity gradient
+   getDiffusionTensorOp()->computeGradientTensor(GetVecOfArrOfPtrs(GradVel),
+                                                 GetVecOfConstPtrs(getVelocityVect(a_time)));
+
+   // Now we compute the turbulent viscosity at faces
+   for (int lev = 0; lev <= finest_level; ++lev) {
+     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+       auto const& velgrad_arr = GradVel[lev][idim].const_arrays();
+       auto const& dens_arr = dens_fc[lev][idim].const_arrays();
+       auto const& mut_arr = mut_fc[lev][idim].arrays();
+       const amrex::Real lscale = std::sqrt(AMREX_D_TERM(geom[lev].CellSize(0)**2,
+                                                         + geom[lev].CellSize(1)**2,
+                                                         + geom[lev].CellSize(2)**2));
+       
+       if (m_les_model == "Smagorinsky") {
+         const amrex::Real prefact = m_les_cs_smag * l_scale * l_scale;
+         amrex::ParallelFor(ldata_p->visc_turb_cc, ldata_p->visc_turb_cc.nGrowVect(), [=]
+                            AMREX_GPU_DEVICE (int box_no, int i, int j, int k) noexcept
+                            {
+                              getTurbViscSmagorinsky( i, j, k, prefact,
+                                                      Array4<Real const>(velgrad_arr[box_no]),
+                                                      Array4<Real const>(dens_arr[box_no]),
+                                                      Array4<Real      >(mut_arr[box_no]) );
+                            });
+         
+       } else if (m_les_model == "WALES") {
+         const amrex::Real prefact = m_les_cs_wales * l_scale * l_scale;
+         amrex::ParallelFor(ldata_p->visc_turb_cc, ldata_p->visc_turb_cc.nGrowVect(), [=]
+                            AMREX_GPU_DEVICE (int box_no, int i, int j, int k) noexcept
+                            {
+                              getTurbViscWALES( i, j, k, prefact,
+                                                Array4<Real const>(velgrad_arr[box_no]),
+                                                Array4<Real const>(dens_arr[box_no]),
+                                                Array4<Real      >(mut_arr[box_no]) );
+                            });
+       }
+     }
+   }
+   Gpu::streamSynchronize();
+   
+   // Finally, we move the turbulent viscosity to cell centers so we can add it to molecular
+   // Average faces in each direction, then average the averages
+   for (int lev = 0; lev <= finest_level; ++lev) {
+     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+       
+     }
+   }
+   
+   // FillPatch the result so the deired ghost cells are valid
+   
    
    for (int lev = 0; lev <= finest_level; ++lev) {
      auto ldata_p = getLevelDataPtr(lev,a_time);
@@ -42,53 +114,6 @@ void PeleLM::calcTurbViscosity(const TimeStamp &a_time) {
      amrex::Print() << "POST LEV (" << lev << ") " <<  ldata_p->visc_turb_cc.min(0) << " " << ldata_p->visc_turb_cc.max(0) << std::endl;
      amrex::Print() << "POST LEV (" << lev << ") " << ldata_p->visc_turb_cc.min(0,1) << " " << ldata_p->visc_turb_cc.max(0,1) << std::endl;
    }
-     
-   for (int lev = 0; lev <= finest_level; ++lev) {
-                              
-     // TODO: Something specieal for EB?
-     //       Alternate strategy would be to compute these derivatives with a tensorop
-     //       That puts the derivatives at the faces (where we eventually need them)
-     //       rather than at the cell centers where the molecular transport coefficients are computed
-     // Even without EB, validation is still required
-
-     // Warning: we assume that the state data has been fillpatched before this function is called
-     auto ldata_p = getLevelDataPtr(lev,a_time);
-     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(ldata_p->state.nGrow() > ldata_p->visc_turb_cc.nGrow(),
-                                      "calcTurbViscosity(): State (velocity) data must be at least one grow cell wider than turbvisc data");
-
-     // TEST TEST TEST
-     
-     // MultiArrays and preliminaries
-     auto const& sma = ldata_p->state.const_arrays();
-     auto const& vma = ldata_p->visc_turb_cc.arrays();
-     const auto dxinv = geom[lev].InvCellSizeArray();
-     const amrex::Real l_scale = 1.0/dxinv[0]; // assumes dx = dy = dz
-
-     // Compute turbulent viscosity
-     if (m_les_model == "Smagorinsky") {
-       const amrex::Real prefact = m_les_cs_smag * l_scale * l_scale;
-       amrex::ParallelFor(ldata_p->visc_turb_cc, ldata_p->visc_turb_cc.nGrowVect(), [=]
-                          AMREX_GPU_DEVICE (int box_no, int i, int j, int k) noexcept
-                          {
-                            getTurbViscSmagorinsky( i, j, k, prefact, dxinv,
-                                                    Array4<Real const>(sma[box_no],VELX),
-                                                    Array4<Real const>(sma[box_no],DENSITY),
-                                                    Array4<Real      >(vma[box_no],0) );
-                          });
-
-     } else if (m_les_model == "WALES") {
-       const amrex::Real prefact = m_les_cs_wales * l_scale * l_scale;
-       amrex::ParallelFor(ldata_p->visc_turb_cc, ldata_p->visc_turb_cc.nGrowVect(), [=]
-                          AMREX_GPU_DEVICE (int box_no, int i, int j, int k) noexcept
-                          {
-                            getTurbViscWALES( i, j, k, prefact, dxinv,
-                                                    Array4<Real const>(sma[box_no],VELX),
-                                                    Array4<Real const>(sma[box_no],DENSITY),
-                                                    Array4<Real      >(vma[box_no],0) );
-                          });
-     }
-   }
-   Gpu::streamSynchronize();
 }
 
 void PeleLM::calcViscosity(const TimeStamp &a_time) {

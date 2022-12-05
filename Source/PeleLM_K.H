@@ -854,37 +854,16 @@ getGammaInv(int i, int j, int k,
 
 AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
-amrex::GpuArray<amrex::Real, AMREX_SPACEDIM*AMREX_SPACEDIM>
-getVelGrad(int i, int j, int k,
-           amrex::Array4<const amrex::Real> const& vel_array,
-           amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dxinv) noexcept
-{
-  // Centered difference evaluation of velocity graident tensor
-  // Requires one additional ghost cell to be valid vs. box where evaluation is done
-  // The derivatives are put in the array with the following order:
-  // component: 0    ,  1    ,  2    ,  3    ,  4    , 5    ,  6    ,  7    ,  8
-  // in 2D:     dU/dx,  dV/dx,  dU/dy,  dV/dy
-  // in 3D:     dU/dx,  dV/dx,  dW/dx,  dU/dy,  dV/dy, dW/dy,  dU/dz,  dV/dz,  dW/dz
-  amrex::GpuArray<amrex::Real, AMREX_SPACEDIM*AMREX_SPACEDIM> vel_grad;
-  for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-    AMREX_D_TERM(vel_grad[                   idim] = 0.5*(vel_array(i+1,j,k,idim) - vel_array(i-1,j,k,idim))*dxinv[0];,
-                 vel_grad[  AMREX_SPACEDIM + idim] = 0.5*(vel_array(i,j+1,k,idim) - vel_array(i,j-1,k,idim))*dxinv[1];,
-                 vel_grad[2*AMREX_SPACEDIM + idim] = 0.5*(vel_array(i,j,k+1,idim) - vel_array(i,j,k-1,idim))*dxinv[2];);
-  }
-  return vel_grad;
-}
-
-AMREX_GPU_HOST_DEVICE
-AMREX_FORCE_INLINE
 amrex::Real
-getSijSij(amrex::GpuArray<amrex::Real, AMREX_SPACEDIM*AMREX_SPACEDIM> const& vel_grad) noexcept
+getSijSij(int i, int j, int k, amrex::Array4<const amrex::Real> const& velgrad) noexcept
 {
   // This function returns SijSij, not strain rate magnitude |S| = sqrt(2 SijSij)
   amrex::Real SijSij = 0.0;
   for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
     for (int jdim = 0; jdim < AMREX_SPACEDIM; ++jdim) {
       // Sij = 0.5(dui/dxj + duj/dxi)
-      amrex::Real Sij = 0.5*(vel_grad[idim*AMREX_SPACEDIM + jdim] + vel_grad[jdim*AMREX_SPACEDIM + idim]);
+      amrex::Real Sij = 0.5*(velgrad(i,j,k,idim*AMREX_SPACEDIM + jdim)
+                             + velgrad(i,j,k,jdim*AMREX_SPACEDIM + idim));
       SijSij += Sij*Sij;
     }
   }
@@ -894,7 +873,7 @@ getSijSij(amrex::GpuArray<amrex::Real, AMREX_SPACEDIM*AMREX_SPACEDIM> const& vel
 AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 amrex::Real
-getVelGradTerm(amrex::GpuArray<amrex::Real, AMREX_SPACEDIM*AMREX_SPACEDIM> const& vel_grad) noexcept
+getVelGradTerm(int i, int j, int k, amrex::Array4<const amrex::Real> const& velgrad) noexcept
 {
   // Compute S^d_ij*S^d_ij
   // S^d_ij = 0.5(g2_ij + g2_ji) - (1/3)*delta_ij*g2_kk
@@ -903,9 +882,11 @@ getVelGradTerm(amrex::GpuArray<amrex::Real, AMREX_SPACEDIM*AMREX_SPACEDIM> const
   amrex::GpuArray<amrex::Real, AMREX_SPACEDIM*AMREX_SPACEDIM> g2_ij;
   for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
     for (int jdim = 0; jdim < AMREX_SPACEDIM; ++jdim) {
-      g2_ij[idim*AMREX_SPACEDIM + jdim] = AMREX_D_TERM(vel_grad[idim*AMREX_SPACEDIM + 0]*vel_grad[0*AMREX_SPACEDIM + jdim],
-                                                       + vel_grad[idim*AMREX_SPACEDIM + 1]*vel_grad[1*AMREX_SPACEDIM + jdim],
-                                                       + vel_grad[idim*AMREX_SPACEDIM + 2]*vel_grad[2*AMREX_SPACEDIM + jdim]);
+      g2_ij[idim*AMREX_SPACEDIM + jdim] = 0.0;
+      for (int ldim = 0; ldim < AMREX_SPACEDIM; ++ldim) { 
+        g2_ij[idim*AMREX_SPACEDIM + jdim] += (vel_grad(i,j,k,idim*AMREX_SPACEDIM + ldim)
+                                              *vel_grad(i,j,k,ldim*AMREX_SPACEDIM + jdim));
+      }
     }
   }
   amrex::Real g2_kk_third = (1.0/AMREX_SPACEDIM) * (AMREX_D_TERM(g2_ij[0],
@@ -915,7 +896,8 @@ getVelGradTerm(amrex::GpuArray<amrex::Real, AMREX_SPACEDIM*AMREX_SPACEDIM> const
   amrex::Real SdijSdij = 0.0;
   for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
     for (int jdim = 0; jdim < AMREX_SPACEDIM; ++jdim) {
-      amrex::Real Sdij = (idim == jdim) ? g2_ij[idim*AMREX_SPACEDIM + jdim] - g2_kk_third
+      amrex::Real Sdij = (idim == jdim) ?
+        g2_ij[idim*AMREX_SPACEDIM + jdim] - g2_kk_third
         : 0.5*(g2_ij[idim*AMREX_SPACEDIM + jdim] + g2_ij[jdim*AMREX_SPACEDIM + idim]);
       SdijSdij += Sdij*Sdij;
     }
@@ -928,8 +910,7 @@ AMREX_FORCE_INLINE
 void
 getTurbViscSmagorinsky(int i, int j, int k,
                        amrex::Real prefactor,
-                       amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dxinv,
-                       amrex::Array4<const amrex::Real> const& vel,
+                       amrex::Array4<const amrex::Real> const& velgrad,
                        amrex::Array4<const amrex::Real> const& rho,
                        amrex::Array4<      amrex::Real> const& mu_t) noexcept
 {
@@ -937,8 +918,7 @@ getTurbViscSmagorinsky(int i, int j, int k,
 
    // mu_t = rho * Cs * Delta^2 * |S|    where |S| = sqrt(2 SijSij)
 
-   amrex::GpuArray<amrex::Real,AMREX_SPACEDIM*AMREX_SPACEDIM> Ugrad = getVelGrad(i,j,k,vel,dxinv);
-   amrex::Real Smag = std::sqrt(2.0 * getSijSij(Ugrad));
+   amrex::Real Smag = std::sqrt(2.0 * getSijSij(i,j,k,velgrad));
    mu_t(i,j,k) = prefactor * rho(i,j,k) * Smag;
 }
 
@@ -947,21 +927,20 @@ AMREX_FORCE_INLINE
 void
 getTurbViscWALES(int i, int j, int k,
                  amrex::Real prefactor,
-                 amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dxinv,
-                 amrex::Array4<const amrex::Real> const& vel,
+                 amrex::Array4<const amrex::Real> const& velgrad,
                  amrex::Array4<const amrex::Real> const& rho,
                  amrex::Array4<      amrex::Real> const& mu_t) noexcept
 {
    using namespace amrex::literals;
 
    // From Ducros, Nicoud, and Poinsot 1999
-   // mu_t = rho * Cs * Delta^2 * (S^d_ijS^d_ij)^(3/2) / (SijSij^(5/2) + (S^d_ijS^d_ij)^(5/4) + smallnum)
+   // mu_t = rho * Cs * Delta^2 * (S^d_ijS^d_ij)^(3/2)
+   //        / (SijSij^(5/2) + (S^d_ijS^d_ij)^(5/4) + smallnum)
    // smallnum included to make sure denom is nonzero
 
-   amrex::GpuArray<amrex::Real,AMREX_SPACEDIM*AMREX_SPACEDIM> Ugrad = getVelGrad(i,j,k,vel,dxinv);
-   amrex::Real SijSij = getSijSij(Ugrad);
+   amrex::Real SijSij = getSijSij(i,j,k,velgrad);
    amrex::Real Sterm52 = std::pow(SijSij, 2.5);
-   amrex::Real Sdterm = getVelGradTerm(Ugrad); // (S^d_ijS^d_ij)
+   amrex::Real Sdterm = getVelGradTerm(i,j,k,velgrad); // (S^d_ijS^d_ij)
    amrex::Real Sdterm14 = std::pow(Sdterm, 0.25);
    amrex::Real Sdterm54 = Sdterm*Sdterm14;
    amrex::Real Sdterm32 = Sdterm54*Sdterm14;
@@ -1002,7 +981,7 @@ addTurbulentTransportToMolecular(int i, int j, int k,
    auto eos = pele::physics::PhysicsType::eos();
    amrex::Real Cp;
    eos.TY2Cp(T(i,j,k),y,Cp);
-   lambda(i,j,k)  += mu_t(i,j,k) * Cp * Pr_inv * 0.0001; // include cgs -> mks for Cp
+   lambda(i,j,k) += mu_t(i,j,k) * Cp * Pr_inv * 0.0001; // include cgs -> mks for Cp
 
    // viscosity: mu_eff = mu_molec + mu_t
    mu(i,j,k) += mu_t(i,j,k);

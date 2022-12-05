@@ -131,7 +131,7 @@ public:
                          const amrex::BCRec &a_bcrec,
                          amrex::Real dt);
 
-  void computeGradientTensor(amrex::Vector<amrex::MultiFab*> const& a_velgrad,
+  void computeGradientTensor(amrex::Vector<amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>> const& a_velgrad,
                              amrex::Vector<amrex::MultiFab const*> const& a_vel);
 
 private:

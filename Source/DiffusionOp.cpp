@@ -617,17 +617,16 @@ DiffusionTensorOp::DiffusionTensorOp (PeleLM* a_pelelm)
                               m_pelelm->getDiffusionTensorOpBC(Orientation::high,bcRecVel));
 }
 
-void DiffusionTensorOp::computeGradientTensor (Vector<MultiFab*> const& a_velgrad,
+void DiffusionTensorOp::computeGradientTensor (Vector<Array<MultiFab*, AMREX_SPACEDIM>> const& a_velgrad,
                                                Vector<MultiFab const*> const& a_vel)
 {
-   // This function returns the velocity gradient tensor at cell centers
-   // it is computed at face centers but then interpolated to cell centers
-   // 
+   // This function returns the velocity gradient tensor at faces
+   //
    // The derivatives are put in the array with the following order:
    // component: 0    ,  1    ,  2    ,  3    ,  4    , 5    ,  6    ,  7    ,  8
    // in 2D:     dU/dx,  dV/dx,  dU/dy,  dV/dy
    // in 3D:     dU/dx,  dV/dx,  dW/dx,  dU/dy,  dV/dy, dW/dy,  dU/dz,  dV/dz,  dW/dz
-  
+
    int finest_level = m_pelelm->finestLevel();
 
    // Duplicate vel since it may be modified by the TensorOp
@@ -641,46 +640,33 @@ void DiffusionTensorOp::computeGradientTensor (Vector<MultiFab*> const& a_velgra
    // The velGrad operator runs on each level seperately
    for (int lev = 0; lev <= finest_level; ++lev) {
      amrex::Print() << lev << " " << &vel[lev] << std::endl;
-      // Required in case any BCs are inhomogeneous 
-      m_gradient_op->setLevelBC(lev, &vel[lev]);
+     // Required in case any BCs are inhomogeneous 
+     m_gradient_op->setLevelBC(lev, &vel[lev]);
      amrex::Print() << lev << std::endl;
-      // Create temporary multifabs to store gradients on faces
-      const auto& ba = a_velgrad[lev]->boxArray();
-      const auto& dm = a_velgrad[lev]->DistributionMap();
-      const auto& factory = a_velgrad[lev]->Factory();
-      const int ncomp = AMREX_SPACEDIM*AMREX_SPACEDIM;
-      Array<MultiFab,AMREX_SPACEDIM> tmpgrad_ec{AMREX_D_DECL(MultiFab(amrex::convert(ba,IntVect::TheDimensionVector(0)),
-                                                                      dm, ncomp, 7, MFInfo(), factory),
-                                                             MultiFab(amrex::convert(ba,IntVect::TheDimensionVector(1)),
-                                                                      dm, ncomp, 1, MFInfo(), factory),
-                                                             MultiFab(amrex::convert(ba,IntVect::TheDimensionVector(2)),
-                                                                      dm, ncomp, 1, MFInfo(), factory))};
+     // Create temporary multifabs to store gradients on faces
 
-      tmpgrad_ec[0].setVal(1.2345e67);
-      // Compute the velocity gradient on faces
-      std::cout << "TEST 0 " << tmpgrad_ec[0].min(0) << " - " << tmpgrad_ec[0].max(0)  << std::endl;
-      std::cout << "TEST 1 " << tmpgrad_ec[0].min(1) << " - " << tmpgrad_ec[0].max(1)  << std::endl;
-      std::cout << "TEST 2 " << tmpgrad_ec[0].min(2) << " - " << tmpgrad_ec[0].max(2)  << std::endl;
-      std::cout << "TEST 3 " << tmpgrad_ec[0].min(3) << " - " << tmpgrad_ec[0].max(3)  << std::endl;
-      std::cout << "TEST 0 " << tmpgrad_ec[0].min(0,7) << " - " << tmpgrad_ec[0].max(0,7)  << std::endl;
-      std::cout << "TEST 1 " << tmpgrad_ec[0].min(1,7) << " - " << tmpgrad_ec[0].max(1,7)  << std::endl;
-      std::cout << "TEST 2 " << tmpgrad_ec[0].min(2,7) << " - " << tmpgrad_ec[0].max(2,7)  << std::endl;
-      std::cout << "TEST 3 " << tmpgrad_ec[0].min(3,7) << " - " << tmpgrad_ec[0].max(3,7)  << std::endl;
-      
-      m_gradient_op->compVelGrad(lev, GetArrOfPtrs(tmpgrad_ec), vel[lev], MLLinOp::Location::FaceCenter);
+     a_velgrad[lev][0]->setVal(1.2345e67);
+     // Compute the velocity gradient on faces
+     std::cout << "TEST 0 " << a_velgrad[lev][0]->min(0) << " - " << a_velgrad[lev][0]->max(0)  << std::endl;
+     std::cout << "TEST 1 " << a_velgrad[lev][0]->min(1) << " - " << a_velgrad[lev][0]->max(1)  << std::endl;
+     std::cout << "TEST 2 " << a_velgrad[lev][0]->min(2) << " - " << a_velgrad[lev][0]->max(2)  << std::endl;
+     std::cout << "TEST 3 " << a_velgrad[lev][0]->min(3) << " - " << a_velgrad[lev][0]->max(3)  << std::endl;
+     std::cout << "TEST 0 " << a_velgrad[lev][0]->min(0,7) << " - " << a_velgrad[lev][0]->max(0,7)  << std::endl;
+     std::cout << "TEST 1 " << a_velgrad[lev][0]->min(1,7) << " - " << a_velgrad[lev][0]->max(1,7)  << std::endl;
+     std::cout << "TEST 2 " << a_velgrad[lev][0]->min(2,7) << " - " << a_velgrad[lev][0]->max(2,7)  << std::endl;
+     std::cout << "TEST 3 " << a_velgrad[lev][0]->min(3,7) << " - " << a_velgrad[lev][0]->max(3,7)  << std::endl;
 
-      std::cout << "TEST 0 " << tmpgrad_ec[0].min(0) << " - " << tmpgrad_ec[0].max(0)  << std::endl;
-      std::cout << "TEST 1 " << tmpgrad_ec[0].min(1) << " - " << tmpgrad_ec[0].max(1)  << std::endl;
-      std::cout << "TEST 2 " << tmpgrad_ec[0].min(2) << " - " << tmpgrad_ec[0].max(2)  << std::endl;
-      std::cout << "TEST 3 " << tmpgrad_ec[0].min(3) << " - " << tmpgrad_ec[0].max(3)  << std::endl;
-      std::cout << "TEST 0 " << tmpgrad_ec[0].min(0,1) << " - " << tmpgrad_ec[0].max(0,1)  << std::endl;
-      std::cout << "TEST 1 " << tmpgrad_ec[0].min(1,1) << " - " << tmpgrad_ec[0].max(1,1)  << std::endl;
-      std::cout << "TEST 2 " << tmpgrad_ec[0].min(2,1) << " - " << tmpgrad_ec[0].max(2,1)  << std::endl;
-      std::cout << "TEST 3 " << tmpgrad_ec[0].min(3,1) << " - " << tmpgrad_ec[0].max(3,1)  << std::endl;
-      // Interpolate to cell centers
-      // Do we need the EB equivalent here
-      // Need the gradient with one grow cell
-      average_face_to_cellcenter(*a_velgrad[lev], 0, GetArrOfConstPtrs(tmpgrad_ec));
+     // Do we need the EB equivalent here     
+     m_gradient_op->compVelGrad(lev, a_velgrad[lev], vel[lev], MLLinOp::Location::FaceCenter);
+     
+     std::cout << "TEST 0 " << a_velgrad[lev][0]->min(0) << " - " << a_velgrad[lev][0]->max(0)  << std::endl;
+     std::cout << "TEST 1 " << a_velgrad[lev][0]->min(1) << " - " << a_velgrad[lev][0]->max(1)  << std::endl;
+     std::cout << "TEST 2 " << a_velgrad[lev][0]->min(2) << " - " << a_velgrad[lev][0]->max(2)  << std::endl;
+     std::cout << "TEST 3 " << a_velgrad[lev][0]->min(3) << " - " << a_velgrad[lev][0]->max(3)  << std::endl;
+     std::cout << "TEST 0 " << a_velgrad[lev][0]->min(0,1) << " - " << a_velgrad[lev][0]->max(0,1)  << std::endl;
+     std::cout << "TEST 1 " << a_velgrad[lev][0]->min(1,1) << " - " << a_velgrad[lev][0]->max(1,1)  << std::endl;
+     std::cout << "TEST 2 " << a_velgrad[lev][0]->min(2,1) << " - " << a_velgrad[lev][0]->max(2,1)  << std::endl;
+     std::cout << "TEST 3 " << a_velgrad[lev][0]->min(3,1) << " - " << a_velgrad[lev][0]->max(3,1)  << std::endl;
    }
 }
 
