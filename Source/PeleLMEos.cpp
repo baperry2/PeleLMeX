@@ -19,6 +19,7 @@ void PeleLM::setThermoPress(int lev, const TimeStamp &a_time) {
 
    auto ldata_p = getLevelDataPtr(lev,a_time);
    auto const& sma = ldata_p->state.arrays();
+   auto const* leosparm = eos_parms.device_eos_parm();
 
    amrex::ParallelFor(ldata_p->state, [=]
    AMREX_GPU_DEVICE (int box_no, int i, int j, int k) noexcept
@@ -27,7 +28,8 @@ void PeleLM::setThermoPress(int lev, const TimeStamp &a_time) {
                    Array4<Real const>(sma[box_no],DENSITY),
                    Array4<Real const>(sma[box_no],FIRSTSPEC),
                    Array4<Real const>(sma[box_no],TEMP),
-                   Array4<Real      >(sma[box_no],RHORT));
+                   Array4<Real      >(sma[box_no],RHORT),
+                   leosparm);
    });
    Gpu::streamSynchronize();
 }
@@ -81,6 +83,8 @@ void PeleLM::calcDivU(int is_init,
       const auto& ebfact = EBFactory(lev);
 #endif
 
+      auto const* leosparm = eos_parms.device_eos_parm();
+
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
@@ -116,22 +120,22 @@ void PeleLM::calcDivU(int is_init,
                  divu(i,j,k) = 0.0;
              });
          } else if (flagfab.getType(bx) != FabType::regular ) {     // EB containing boxes
-             amrex::ParallelFor(bx, [ rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, flag]
+             amrex::ParallelFor(bx, [ rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, flag, leosparm]
              AMREX_GPU_DEVICE (int i, int j, int k) noexcept
              {
                 if ( flag(i,j,k).isCovered() ) {
                     divu(i,j,k) = 0.0;
                 } else {
-                    compute_divu( i, j, k, rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react );
+                    compute_divu<pele::physics::PhysicsType::eos_type>( i, j, k, rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, leosparm );
                 }
              });
          } else
 #endif
          {
-             amrex::ParallelFor(bx, [ rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react]
+             amrex::ParallelFor(bx, [ rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, leosparm]
              AMREX_GPU_DEVICE (int i, int j, int k) noexcept
              {
-                compute_divu( i, j, k, rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react );
+                compute_divu<pele::physics::PhysicsType::eos_type>( i, j, k, rhoY, T, SpecD, Fourier, DiffDiff, r, extRhoY, extRhoH, divu, use_react, leosparm );
              });
          }
       }
@@ -198,6 +202,7 @@ void PeleLM::setTemperature(int lev, const TimeStamp &a_time) {
 
    auto ldata_p = getLevelDataPtr(lev,a_time);
    auto const& sma = ldata_p->state.arrays();
+   auto const* leosparm = eos_parms.device_eos_parm();
 
    amrex::ParallelFor(ldata_p->state, [=]
    AMREX_GPU_DEVICE (int box_no, int i, int j, int k) noexcept
@@ -206,7 +211,8 @@ void PeleLM::setTemperature(int lev, const TimeStamp &a_time) {
                   Array4<Real const>(sma[box_no],DENSITY),
                   Array4<Real const>(sma[box_no],FIRSTSPEC),
                   Array4<Real const>(sma[box_no],RHOH),
-                  Array4<Real      >(sma[box_no],TEMP));
+                  Array4<Real      >(sma[box_no],TEMP),
+                  leosparm);
    });
    Gpu::streamSynchronize();
 }
@@ -265,15 +271,18 @@ PeleLM::adjustPandDivU(std::unique_ptr<AdvanceAdvData> &advData)
         auto const& tma   = ThetaHalft[lev]->arrays();
         auto const& sma_o = getLevelDataPtr(lev,AmrOldTime)->state.const_arrays();
         auto const& sma_n = getLevelDataPtr(lev,AmrNewTime)->state.const_arrays();
+        auto const* leosparm = eos_parms.device_eos_parm();
 
         amrex::ParallelFor(*ThetaHalft[lev], [=, pOld=m_pOld,pNew=m_pNew]
         AMREX_GPU_DEVICE (int box_no, int i, int j, int k) noexcept
         {
            auto theta = tma[box_no];
            Real gammaInv_o = getGammaInv(i,j,k, Array4<Real const>(sma_o[box_no],FIRSTSPEC),
-                                                Array4<Real const>(sma_o[box_no],TEMP));
+                                                Array4<Real const>(sma_o[box_no],TEMP),
+                                                leosparm);
            Real gammaInv_n = getGammaInv(i,j,k, Array4<Real const>(sma_n[box_no],FIRSTSPEC),
-                                                Array4<Real const>(sma_n[box_no],TEMP));
+                                                Array4<Real const>(sma_n[box_no],TEMP),
+                                                leosparm);
            theta(i,j,k) = 0.5 * (gammaInv_o/pOld + gammaInv_n/pNew);
         });
     }

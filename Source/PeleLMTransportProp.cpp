@@ -58,8 +58,10 @@ void PeleLM::calcTurbViscosity(const TimeStamp &a_time) {
        // get cp_cc (valid in 1 grow cell for interpolation to FCs)
        int ngrow = 1;
        cp_cc.define(ba, dm, 1, ngrow, MFInfo(), factory);
+#ifndef USE_MANIFOLD_EOS
        auto const& state_arr      = ldata_p->state.const_arrays();
        auto const& cp_arr       = cp_cc.arrays();
+       auto const* leosparm = eos_parms.device_eos_parm();
        amrex::ParallelFor(cp_cc, cp_cc.nGrowVect(), [=]
                           AMREX_GPU_DEVICE (int box_no, int i, int j, int k) noexcept
                           {
@@ -67,8 +69,12 @@ void PeleLM::calcTurbViscosity(const TimeStamp &a_time) {
                                               Array4<Real const>(state_arr[box_no], DENSITY),
                                               Array4<Real const>(state_arr[box_no], FIRSTSPEC),
                                               Array4<Real const>(state_arr[box_no], TEMP),
-                                              Array4<Real      >(cp_arr[box_no]) );
+                                              Array4<Real      >(cp_arr[box_no]),
+                                              leosparm);
                           });
+#else
+       cp_cc.setVal(0.0);
+#endif
 
        // this function really just interpolates CCs to FCs in this case
        int doZeroVisc = 0;
@@ -159,6 +165,7 @@ void PeleLM::calcDiffusivity(const TimeStamp &a_time) {
 
       // Transport data pointer
       auto const* ltransparm = trans_parms.device_trans_parm();
+      auto const* leosparm = eos_parms.device_eos_parm();
 
       // MultiArrays
       auto const& sma = ldata_p->state.const_arrays();
@@ -179,13 +186,13 @@ void PeleLM::calcDiffusivity(const TimeStamp &a_time) {
       AMREX_GPU_DEVICE (int box_no, int i, int j, int k) noexcept
       {
         if (do_unity_le) {
-          getTransportCoeffUnityLe( i, j, k, Sc_inv, Pr_inv,
+          getTransportCoeffUnityLe<pele::physics::PhysicsType::eos_type>( i, j, k, Sc_inv, Pr_inv,
                                     Array4<Real const>(sma[box_no],FIRSTSPEC),
                                     Array4<Real const>(sma[box_no],TEMP),
                                     Array4<Real      >(dma[box_no],0),
                                     Array4<Real      >(dma[box_no],NUM_SPECIES),
                                     Array4<Real      >(dma[box_no],NUM_SPECIES+1),
-                                    ltransparm);
+                                    ltransparm, leosparm);
         } else {
           getTransportCoeff( i, j, k,
                              Array4<Real const>(sma[box_no],FIRSTSPEC),
@@ -193,7 +200,7 @@ void PeleLM::calcDiffusivity(const TimeStamp &a_time) {
                              Array4<Real      >(dma[box_no],0),
                              Array4<Real      >(dma[box_no],NUM_SPECIES),
                              Array4<Real      >(dma[box_no],NUM_SPECIES+1),
-                             ltransparm);
+                             ltransparm, leosparm);
         }
 #ifdef PELE_USE_EFIELD
         getKappaSp( i, j, k, mwt.arr, zk,

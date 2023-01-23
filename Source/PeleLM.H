@@ -342,7 +342,8 @@ class PeleLM : public amrex::AmrCore {
                     amrex::Vector<amrex::MultiFab const*> const &a_rho,
                     amrex::Vector<amrex::MultiFab const*> const &a_beta);
 
-   // Ensure sum of specues diffusion fluxes sum to 0
+   // Ensure species diffusion fluxes sum to 0
+   template <typename EOSType>
    void adjustSpeciesFluxes(const amrex::Vector<amrex::Array<amrex::MultiFab*,AMREX_SPACEDIM>> &a_fluxes,
                             amrex::Vector<amrex::MultiFab const*> const &a_spec);
 
@@ -1064,6 +1065,11 @@ class PeleLM : public amrex::AmrCore {
    static pele::physics::transport::TransportParams<
              pele::physics::PhysicsType::transport_type> trans_parms;
 
+   // EOS pointer
+   static pele::physics::eos::EosParams<
+             pele::physics::PhysicsType::eos_type> eos_parms;
+   static std::unique_ptr<pele::physics::ManFuncParams> manfunc_par;
+
    // Reactor pointer
    std::string m_chem_integrator;
    std::unique_ptr<pele::physics::reactions::ReactorBase> m_reactor;
@@ -1147,6 +1153,9 @@ class PeleLM : public amrex::AmrCore {
    int m_divu_checkFlag = 1;
    amrex::Real m_divu_dtFactor = 0.5;
    amrex::Real m_divu_rhoMin = 0.1;
+
+   // Chi correction
+   std::string m_chi_correction_type = "DivuEveryIter";
 
    // Aux data size
    int m_nAux = 0;
@@ -1310,6 +1319,10 @@ class PeleLM : public amrex::AmrCore {
    std::string m_hypre_namespace_mac = "mac_hypre";
    //-----------------------------------------------------------------------------
 };
+
+template <>
+void PeleLM::adjustSpeciesFluxes<pele::physics::eos::Manifold>(const amrex::Vector<amrex::Array<amrex::MultiFab*,AMREX_SPACEDIM>> &a_fluxes,
+                                                               amrex::Vector<amrex::MultiFab const*> const &a_spec);
 
 void writeBuildInfo();
 

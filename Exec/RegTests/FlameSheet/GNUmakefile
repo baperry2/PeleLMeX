@@ -18,13 +18,21 @@ USE_MPI         = TRUE
 USE_OMP         = FALSE
 USE_CUDA        = FALSE
 USE_HIP         = FALSE
+FUEGO_GAS       = TRUE
+USE_LIBTORCH    = FALSE
 
 # PeleLMeX
 USE_EFIELD      = FALSE
 
 # PelePhysics
-Chemistry_Model = drm19
-Eos_Model		= Fuego
-Transport_Model = Simple
+ifeq ($(FUEGO_GAS), TRUE)
+	Chemistry_Model = drm19
+	Eos_Model		= Fuego
+	Transport_Model = Simple
+else
+	Eos_Model = Manifold
+	Chemistry_Model = Manifold
+	Transport_Model = Manifold
+endif
 
 include $(PELELMEX_HOME)/Utils/Make.PeleLMeX

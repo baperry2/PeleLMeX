@@ -366,6 +366,7 @@ void PeleLM::initLevelData(int lev) {
    // Prob/PMF datas
    ProbParm const* lprobparm = prob_parm_d;
    pele::physics::PMF::PmfData::DataContainer const* lpmfdata   = pmf_data.getDeviceData();
+   auto const* leosparm = eos_parms.device_eos_parm();
 
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -380,7 +381,7 @@ void PeleLM::initLevelData(int lev) {
       AMREX_GPU_DEVICE (int i, int j, int k) noexcept
       {
          pelelm_initdata(i, j, k, m_incompressible, state_arr, aux_arr,
-                         geomdata, *lprobparm, lpmfdata);
+                         geomdata, *lprobparm, lpmfdata, leosparm);
       });
    }
 

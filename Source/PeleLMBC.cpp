@@ -325,6 +325,7 @@ void PeleLM::fillpatch_state(int lev,
                              int nGhost) {
    ProbParm const* lprobparm = prob_parm_d;
    pele::physics::PMF::PmfData::DataContainer const* lpmfdata = pmf_data.getDeviceData();
+   auto const* leosparm = eos_parms.device_eos_parm();
 
    int nCompState = ( m_incompressible ) ? AMREX_SPACEDIM : NVAR;
 
@@ -332,7 +333,7 @@ void PeleLM::fillpatch_state(int lev,
 
    if (lev == 0) {
       PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirState>> bndry_func(geom[lev], fetchBCRecArray(0,nCompState),
-                                                                       PeleLMCCFillExtDirState{lprobparm, lpmfdata,
+                                                                       PeleLMCCFillExtDirState{lprobparm, lpmfdata, leosparm,
                                                                                                m_nAux, turb_inflow.is_initialized()});
       FillPatchSingleLevel(a_state, IntVect(nGhost), a_time,
                            {&(m_leveldata_old[lev]->state),&(m_leveldata_new[lev]->state)},
@@ -343,10 +344,10 @@ void PeleLM::fillpatch_state(int lev,
       auto* mapper = getInterpolator();
 
       PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirState>> crse_bndry_func(geom[lev-1], fetchBCRecArray(0,nCompState),
-                                                                            PeleLMCCFillExtDirState{lprobparm, lpmfdata,
+                                                                            PeleLMCCFillExtDirState{lprobparm, lpmfdata, leosparm,
                                                                                                     m_nAux, turb_inflow.is_initialized()});
       PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirState>> fine_bndry_func(geom[lev], fetchBCRecArray(0,nCompState),
-                                                                            PeleLMCCFillExtDirState{lprobparm, lpmfdata,
+                                                                            PeleLMCCFillExtDirState{lprobparm, lpmfdata, leosparm,
                                                                                                     m_nAux, turb_inflow.is_initialized()});
       FillPatchTwoLevels(a_state, IntVect(nGhost), a_time,
                          {&(m_leveldata_old[lev-1]->state),&(m_leveldata_new[lev-1]->state)},
@@ -369,11 +370,12 @@ void PeleLM::fillpatch_density(int lev,
                                int nGhost) {
    ProbParm const* lprobparm = prob_parm_d;
    pele::physics::PMF::PmfData::DataContainer const* lpmfdata = pmf_data.getDeviceData();
+   auto const* leosparm = eos_parms.device_eos_parm();
    if (lev == 0) {
 
       // Density
       PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirDens>> bndry_func_rho(geom[lev], fetchBCRecArray(DENSITY,1),
-                                                                          PeleLMCCFillExtDirDens{lprobparm, lpmfdata, m_nAux});
+                                                                          PeleLMCCFillExtDirDens{lprobparm, lpmfdata, leosparm, m_nAux});
       FillPatchSingleLevel(a_density, IntVect(nGhost), a_time,
                            {&(m_leveldata_old[lev]->state),&(m_leveldata_new[lev]->state)},
                            {m_t_old[lev], m_t_new[lev]},DENSITY,rho_comp,1,geom[lev], bndry_func_rho, 0);
@@ -385,9 +387,9 @@ void PeleLM::fillpatch_density(int lev,
 
       // Density
       PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirDens>> crse_bndry_func_rho(geom[lev-1], fetchBCRecArray(DENSITY,1),
-                                                                               PeleLMCCFillExtDirDens{lprobparm, lpmfdata, m_nAux});
+                                                                               PeleLMCCFillExtDirDens{lprobparm, lpmfdata, leosparm, m_nAux});
       PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirDens>> fine_bndry_func_rho(geom[lev], fetchBCRecArray(DENSITY,1),
-                                                                               PeleLMCCFillExtDirDens{lprobparm, lpmfdata, m_nAux});
+                                                                               PeleLMCCFillExtDirDens{lprobparm, lpmfdata, leosparm, m_nAux});
       FillPatchTwoLevels(a_density, IntVect(nGhost), a_time,
                          {&(m_leveldata_old[lev-1]->state),&(m_leveldata_new[lev-1]->state)},
                          {m_t_old[lev-1], m_t_new[lev-1]},
@@ -407,11 +409,12 @@ void PeleLM::fillpatch_species(int lev,
                                int nGhost) {
    ProbParm const* lprobparm = prob_parm_d;
    pele::physics::PMF::PmfData::DataContainer const* lpmfdata = pmf_data.getDeviceData();
+   auto const* leosparm = eos_parms.device_eos_parm();
    if (lev == 0) {
 
       // Species
       PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirSpec>> bndry_func(geom[lev], fetchBCRecArray(FIRSTSPEC,NUM_SPECIES),
-                                                                      PeleLMCCFillExtDirSpec{lprobparm, lpmfdata, m_nAux});
+                                                                      PeleLMCCFillExtDirSpec{lprobparm, lpmfdata, leosparm, m_nAux});
       FillPatchSingleLevel(a_species, IntVect(nGhost), a_time,
                            {&(m_leveldata_old[lev]->state),&(m_leveldata_new[lev]->state)},
                            {m_t_old[lev], m_t_new[lev]},FIRSTSPEC,rhoY_comp,NUM_SPECIES,geom[lev], bndry_func, 0);
@@ -422,9 +425,9 @@ void PeleLM::fillpatch_species(int lev,
 
       // Species
       PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirSpec>> crse_bndry_func(geom[lev-1], fetchBCRecArray(FIRSTSPEC,NUM_SPECIES),
-                                                                           PeleLMCCFillExtDirSpec{lprobparm, lpmfdata, m_nAux});
+                                                                           PeleLMCCFillExtDirSpec{lprobparm, lpmfdata, leosparm, m_nAux});
       PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirSpec>> fine_bndry_func(geom[lev], fetchBCRecArray(FIRSTSPEC,NUM_SPECIES),
-                                                                           PeleLMCCFillExtDirSpec{lprobparm, lpmfdata, m_nAux});
+                                                                           PeleLMCCFillExtDirSpec{lprobparm, lpmfdata, leosparm, m_nAux});
       FillPatchTwoLevels(a_species, IntVect(nGhost), a_time,
                          {&(m_leveldata_old[lev-1]->state),&(m_leveldata_new[lev-1]->state)},
                          {m_t_old[lev-1], m_t_new[lev-1]},
@@ -444,9 +447,10 @@ void PeleLM::fillpatch_temp(int lev,
                             int nGhost) {
    ProbParm const* lprobparm = prob_parm_d;
    pele::physics::PMF::PmfData::DataContainer const* lpmfdata = pmf_data.getDeviceData();
+   auto const* leosparm = eos_parms.device_eos_parm();
    if (lev == 0) {
       PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirTemp>> bndry_func(geom[lev], fetchBCRecArray(TEMP,1),
-                                                                      PeleLMCCFillExtDirTemp{lprobparm, lpmfdata, m_nAux});
+                                                                      PeleLMCCFillExtDirTemp{lprobparm, lpmfdata, leosparm, m_nAux});
       FillPatchSingleLevel(a_temp, IntVect(nGhost), a_time,
                            {&(m_leveldata_old[lev]->state),&(m_leveldata_new[lev]->state)},
                            {m_t_old[lev], m_t_new[lev]},TEMP,temp_comp,1,geom[lev], bndry_func, 0);
@@ -456,9 +460,9 @@ void PeleLM::fillpatch_temp(int lev,
       auto* mapper = getInterpolator();
 
       PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirTemp>> crse_bndry_func(geom[lev-1], fetchBCRecArray(TEMP,1),
-                                                                           PeleLMCCFillExtDirTemp{lprobparm, lpmfdata, m_nAux});
+                                                                           PeleLMCCFillExtDirTemp{lprobparm, lpmfdata, leosparm, m_nAux});
       PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirTemp>> fine_bndry_func(geom[lev], fetchBCRecArray(TEMP,1),
-                                                                           PeleLMCCFillExtDirTemp{lprobparm, lpmfdata, m_nAux});
+                                                                           PeleLMCCFillExtDirTemp{lprobparm, lpmfdata, leosparm, m_nAux});
       FillPatchTwoLevels(a_temp, IntVect(nGhost), a_time,
                          {&(m_leveldata_old[lev-1]->state),&(m_leveldata_new[lev-1]->state)},
                          {m_t_old[lev-1], m_t_new[lev-1]},
@@ -640,6 +644,7 @@ void PeleLM::fillcoarsepatch_state(int lev,
    AMREX_ASSERT(lev>0);
    ProbParm const* lprobparm = prob_parm_d;
    pele::physics::PMF::PmfData::DataContainer const* lpmfdata = pmf_data.getDeviceData();
+   auto const* leosparm = eos_parms.device_eos_parm();
 
    int nCompState = ( m_incompressible ) ? AMREX_SPACEDIM : NVAR;
 
@@ -649,10 +654,10 @@ void PeleLM::fillcoarsepatch_state(int lev,
    auto* mapper = getInterpolator(m_regrid_interp_method);
 
    PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirState>> crse_bndry_func(geom[lev-1], fetchBCRecArray(0,nCompState),
-                                                                         PeleLMCCFillExtDirState{lprobparm, lpmfdata,
+                                                                         PeleLMCCFillExtDirState{lprobparm, lpmfdata, leosparm,
                                                                                                  m_nAux, turb_inflow.is_initialized()});
    PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirState>> fine_bndry_func(geom[lev], fetchBCRecArray(0,nCompState),
-                                                                         PeleLMCCFillExtDirState{lprobparm, lpmfdata,
+                                                                         PeleLMCCFillExtDirState{lprobparm, lpmfdata, leosparm,
                                                                                                  m_nAux, turb_inflow.is_initialized()});
    InterpFromCoarseLevel(a_state, IntVect(nGhost), a_time,
                          m_leveldata_new[lev-1]->state, 0, 0, nCompState,
@@ -755,8 +760,9 @@ void PeleLM::setInflowBoundaryVel(MultiFab &a_vel,
 
    ProbParm const* lprobparm = prob_parm_d;
    pele::physics::PMF::PmfData::DataContainer const* lpmfdata = pmf_data.getDeviceData();
+   auto const* leosparm = eos_parms.device_eos_parm();
    PhysBCFunct<GpuBndryFuncFab<PeleLMCCFillExtDirState>> bndry_func(geom[lev], dummyVelBCRec,
-                                                                    PeleLMCCFillExtDirState{lprobparm, lpmfdata,
+                                                                    PeleLMCCFillExtDirState{lprobparm, lpmfdata, leosparm,
                                                                                             m_nAux, turb_inflow.is_initialized()});
 
    bndry_func(a_vel, 0, AMREX_SPACEDIM, a_vel.nGrowVect(), time, 0);

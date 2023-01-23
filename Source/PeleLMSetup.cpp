@@ -56,6 +56,24 @@ void PeleLM::Setup() {
    // Setup the state variables
    variablesSetup();
 
+   // Load manifold if needed (must happen before derived setup)
+#ifdef USE_MANIFOLD_EOS
+   amrex::ParmParse pp("manifold");
+   std::string manifold_model;
+   pp.get("model", manifold_model);
+   if(manifold_model == "Table")
+     {
+       manfunc_par.reset(new pele::physics::TabFuncParams());
+       amrex::Print() << " Initialization of Table (CPP)... \n";
+     }
+   else if(manifold_model == "NeuralNet")
+     {
+       manfunc_par.reset(new pele::physics::NNFuncParams());
+       amrex::Print() << " Initialization of Neural Net Func. (CPP)... \n";
+     }
+   manfunc_par->initialize();
+#endif
+
    // Derived variables
    derivedSetup();
 
@@ -81,8 +99,16 @@ void PeleLM::Setup() {
 
    // Initialize EOS and others
    if (!m_incompressible) {
+      amrex::Print() << " Initialization of EOS (CPP)... \n";
+#ifdef USE_MANIFOLD_EOS
+      eos_parms.allocate(manfunc_par->device_manfunc_data());
+      amrex::Print() << " Initialization of Transport ... \n";
+      trans_parms.allocate(manfunc_par->device_manfunc_data());
+#else
+      eos_parms.allocate();
       amrex::Print() << " Initialization of Transport ... \n";
       trans_parms.allocate();
+#endif
       if (m_les_verbose and m_do_les)
         amrex::Print() << "    Using LES in transport with Sc = " << 1.0/m_Schmidt_inv
                        << " and Pr = " << 1.0/m_Prandtl_inv << std::endl;
@@ -98,6 +124,8 @@ void PeleLM::Setup() {
          pp.query("chem_integrator",m_chem_integrator);
          m_reactor = pele::physics::reactions::ReactorBase::create(m_chem_integrator);
          m_reactor->init(reactor_type, ncells_chem);
+         // Give the eosparm to the reactor
+         m_reactor->set_eos_parm(eos_parms.device_eos_parm());
          // For ReactorNull, we need to also skip instantaneous RR used in divU
          if (m_chem_integrator == "ReactorNull") {
             m_skipInstantRR = 1;
@@ -117,8 +145,11 @@ void PeleLM::Setup() {
    }
 
    // Mixture fraction & Progress variable
+   // TODO: Take mixture fraction and progress variable if they are manifold coordinates
+#ifndef USE_MANIFOLD_EOS
    initMixtureFraction();
    initProgressVariable();
+#endif
 
    // Initiliaze turbulence injection
    turb_inflow.init(Geom(0));
@@ -154,6 +185,10 @@ void PeleLM::readParameters() {
    // -----------------------------------------
    pp.query("run_mode",m_run_mode);
    pp.query("v", m_verbose);
+   pp.query("chi_correction_type", m_chi_correction_type);
+   AMREX_ASSERT(m_chi_correction_type == "DivuEveryIter" ||
+                m_chi_correction_type == "DivuFirstIter" ||
+                m_chi_correction_type == "NoDivu");
 
    // -----------------------------------------
    // Boundary conditions
@@ -225,6 +260,11 @@ void PeleLM::readParameters() {
    if (verbose && m_closed_chamber) {
       Print() << " Simulation performed with the closed chamber algorithm \n";
    }
+#ifdef USE_MANIFOLD_EOS
+   if (m_closed_chamber) {
+     amrex::Abort("Simulation with closed chamber not supported for Manifold EOS");
+   }
+#endif
 
 #ifdef PELE_USE_EFIELD
    ParmParse ppef("ef");
@@ -347,6 +387,14 @@ void PeleLM::readParameters() {
      amrex::Print() << "WARNING: use_wbar set to false because unity_Le is true"
                     << std::endl;
    }
+#ifdef USE_MANIFOLD_EOS
+   if (!m_unity_Le) {
+     amrex::Abort("Must use unity_Le transport with manifold models");
+   }
+   if (m_use_wbar) {
+     amrex::Abort("Use of Wbar fluxes is incompatible with Manifold EOS");
+   }
+#endif
    pp.query("deltaT_verbose",m_deltaT_verbose);
    pp.query("deltaT_iterMax",m_deltaTIterMax);
    pp.query("deltaT_tol",m_deltaT_norm_max);
@@ -819,6 +867,19 @@ void PeleLM::derivedSetup()
       }
       derive_lst.add("mole_fractions",IndexType::TheCellType(),NUM_SPECIES,
                      var_names_massfrac,pelelm_dermolefrac,the_same_box);
+
+#ifdef USE_MANIFOLD_EOS
+      // Output quantities from manifold
+      auto manf_data = &manfunc_par->host_manfunc_data();
+      int nmanivar = manf_data->Nvar;
+      Vector<std::string> var_names_maniout(nmanivar);
+      for (int n = 0 ; n < nmanivar; n++) {
+         std::string nametmp = std::string(&(manf_data->varnames)[n*manf_data->len_str], manf_data->len_str);
+         var_names_maniout[n] = "MANI_" + amrex::trim(nametmp);
+      }
+      derive_lst.add("maniout",IndexType::TheCellType(),nmanivar,
+                     var_names_maniout,pelelm_dermaniout,the_same_box);
+#endif
 
       // Species diffusion coefficients
       for (int n = 0 ; n < NUM_SPECIES; n++) {

@@ -5,12 +5,20 @@ using namespace amrex;
 pele::physics::transport::TransportParams<
   pele::physics::PhysicsType::transport_type>
   PeleLM::trans_parms;
+pele::physics::eos::EosParams<
+  pele::physics::PhysicsType::eos_type>
+  PeleLM::eos_parms;
+std::unique_ptr<pele::physics::ManFuncParams> PeleLM::manfunc_par;
 
 PeleLM::PeleLM() = default;
 
 PeleLM::~PeleLM()
 {
    if (!m_incompressible) {
+      eos_parms.deallocate();
+#ifdef USE_MANIFOLD_EOS
+      manfunc_par->deallocate();
+#endif
       trans_parms.deallocate();
       m_reactor->close();
    }

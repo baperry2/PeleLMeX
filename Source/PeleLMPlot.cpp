@@ -672,6 +672,10 @@ void PeleLM::initLevelDataFromPlt(int a_lev,
       Abort(" initializing data from a pltfile only available for low-Mach simulations");
    }
 
+#ifdef USE_MANIFOLD_EOS
+   Abort(" initializing data from a pltfile not available for Manifold Eos");
+#endif
+
    amrex::Print() << " initData on level " << a_lev << " from pltfile " << a_dataPltFile << "\n";
    if(pltfileSource == "LM"){
      amrex::Print() << " Assuming pltfile was generated in LM/LMeX \n";
@@ -824,6 +828,7 @@ void PeleLM::initLevelDataFromPlt(int a_lev,
    ldata_p->gp.setVal(0.0);
 
    ProbParm const* lprobparm = prob_parm_d;
+   auto const* leosparm = eos_parms.device_eos_parm();
 
    // Enforce rho and rhoH consistent with temperature and mixture
    // TODO the above handles species mapping (to some extent), but nothing enforce
@@ -841,16 +846,19 @@ void PeleLM::initLevelDataFromPlt(int a_lev,
       amrex::ParallelFor(bx, [=]
       AMREX_GPU_DEVICE (int i, int j, int k) noexcept
       {
-          auto eos = pele::physics::PhysicsType::eos();
+          auto eos = pele::physics::PhysicsType::eos(leosparm);
           Real massfrac[NUM_SPECIES] = {0.0};
           Real sumYs = 0.0;
+	  // TODO : is this the best way to Init when species don't add to 1?
           for (int n = 0; n < NUM_SPECIES; n++){
              massfrac[n] = rhoY_arr(i,j,k,n);
-             if (n != N2_ID) {
-                sumYs += massfrac[n];
-             }
+	     sumYs += massfrac[n];
           }
-          massfrac[N2_ID] = 1.0 - sumYs;
+          for (int n = 0; n < NUM_SPECIES; n++){
+             massfrac[n] /= sumYs;
+          }
+          // TODO BAP: something to allow this when N2_ID isn't defined
+          // massfrac[N2_ID] = 1.0 - sumYs;
 
           // Get density
           Real P_cgs = lprobparm->P_mean * 10.0;

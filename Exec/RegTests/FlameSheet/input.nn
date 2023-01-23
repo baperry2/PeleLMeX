@@ -1,0 +1,114 @@
+#----------------------DOMAIN DEFINITION------------------------
+geometry.is_periodic = 1 0               # For each dir, 0: non-perio, 1: periodic
+geometry.coord_sys   = 0                  # 0 => cart, 1 => RZ
+geometry.prob_lo     = 0.0 0.0 0.0        # x_lo y_lo (z_lo)
+geometry.prob_hi     = 0.003 0.012 0.016        # x_hi y_hi (z_hi)
+
+# >>>>>>>>>>>>>  BC FLAGS <<<<<<<<<<<<<<<<
+# Interior, Inflow, Outflow, Symmetry,
+# SlipWallAdiab, NoSlipWallAdiab, SlipWallIsotherm, NoSlipWallIsotherm
+peleLM.lo_bc = Interior Inflow
+peleLM.hi_bc = Interior Outflow
+
+
+#-------------------------AMR CONTROL----------------------------
+amr.n_cell          = 32 128 32        # Level 0 number of cells in each direction
+amr.v               = 1                # AMR verbose
+amr.max_level       = 2                # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2          # refinement ratio
+amr.regrid_int      = 5                # how often to regrid
+amr.n_error_buf     = 1 1 2 2          # number of buffer cells in error est
+amr.grid_eff        = 0.7              # what constitutes an efficient grid
+amr.blocking_factor = 16               # block factor in grid generation (min box size)
+amr.max_grid_size   = 64               # max box size
+
+
+#--------------------------- Problem -------------------------------
+prob.P_mean = 101325.0
+prob.standoff = -.03
+prob.pertmag = 0.00005
+pmf.datafile = "prem_drm19_phi1_p1_t298_mani_nn.dat"
+
+#-------------------------PeleLM CONTROL----------------------------
+peleLM.v = 3
+peleLM.incompressible = 0
+peleLM.rho = 1.17
+peleLM.mu = 0.0
+peleLM.sdc_iterMax = 4
+peleLM.floor_species = 0
+
+peleLM.do_temporals = 1
+peleLM.temporal_int = 2
+peleLM.mass_balance = 1
+
+#amr.restart = chk00005
+#amr.check_int = 20
+amr.plot_int = 10
+amr.max_step = 20000
+amr.dt_shrink = 0.01
+amr.stop_time = 0.01
+#amr.stop_time = 1.00
+amr.cfl = 0.5
+amr.derive_plot_vars = avg_pressure mag_vort mass_fractions # mixture_fraction progress_variable
+
+# ------------------- INPUTS DERIVED DIAGS ------------------
+peleLM.fuel_name = CH4
+#peleLM.mixtureFraction.format = Cantera
+#peleLM.mixtureFraction.type   = mass
+#peleLM.mixtureFraction.oxidTank = O2:0.233 N2:0.767
+#peleLM.mixtureFraction.fuelTank = H2:0.5 CH4:0.5
+#peleLM.progressVariable.format = Cantera
+#peleLM.progressVariable.weights = CO:1.0 CO2:1.0
+#peleLM.progressVariable.coldState = CO:0.0 CO2:0.0
+#peleLM.progressVariable.hotState = CO:0.000002 CO2:0.0666
+
+# --------------- INPUTS TO CHEMISTRY REACTOR ---------------
+peleLM.chem_integrator = "ReactorRK64"
+peleLM.use_typ_vals_chem = 1          # Use species/temp typical values in CVODE
+ode.rtol = 1.0e-6                     # Relative tolerance of the chemical solve
+ode.atol = 1.0e-5                     # Absolute tolerance factor applied on typical values
+ode.rk64_nsubsteps_guess = 1
+ode.rk64_nsubsteps_min = 1
+cvode.solve_type = denseAJ_direct     # CVODE Linear solve type (for Newton direction)
+cvode.max_order  = 4                  # CVODE max BDF order.
+
+mac_proj.verbose = 2
+mac_proj.rtol = 1e-8
+mac_proj.atol = 1e-8
+nodal_proj.verbose = 2
+nodal_proj.rtol = 1e-8
+nodal_proj.atol = 1e-8
+diffusion.rtol = 1e-8
+diffusion.atol = 1e-8
+tensor_diffusion.rtol = 1e-8
+tensor_diffusion.atol = 1e-8
+
+#--------------------REFINEMENT CONTROL------------------------
+amr.refinement_indicators = temp
+amr.temp.max_level     = 3
+amr.temp.adjacent_difference_greater = 10
+amr.temp.field_name    = temp
+
+#amr.refinement_indicators = magVort
+#amr.magVort.max_level     = 1
+#amr.magVort.value_greater = 500.0
+#amr.magVort.field_name    = mag_vort
+
+#amr.refinement_indicators = yH
+#amr.yH.max_level     = 3
+#amr.yH.value_greater = 1.0e-6
+#amr.yH.field_name    = Y(H)
+
+#amrex.fpe_trap_invalid = 1
+#amrex.fpe_trap_zero = 1
+#amrex.fpe_trap_overflow = 1
+
+#----------------------- Manifold Stuff ----------------------------
+manifold.model = NeuralNet
+manifold.v = 1
+manifold.filename = cmlm_net.pt
+manifold.info_filename = cmlm_net_info.txt
+eos.nominal_pressure_cgs = 1013250.0
+peleLM.use_wbar = 0
+peleLM.chi_correction_type = "DivuFirstIter"
+#peleLM.chi_correction_type = "NoDivu"
