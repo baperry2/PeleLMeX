@@ -12,6 +12,8 @@
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/sphinx_highlight.js"></script>
@@ -44,6 +46,7 @@
               <p class="caption" role="heading"><span class="caption-text">Theory:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="Model.html">The <cite>PeleLMeX</cite> Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Implementation.html">Source code</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Validation.html">PeleLMeX Verification &amp; Validations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Performances.html">Performances</a></li>
 </ul>
@@ -102,6 +105,13 @@ point your web browser at the file <code class="docutils literal notranslate"><s
 <li class="toctree-l2"><a class="reference internal" href="Model.html#pelelmex-algorithm">PeleLMeX Algorithm</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="Implementation.html">Source code</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Implementation.html#overview-of-source-code">Overview of source code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Implementation.html#data-structure-and-containers">Data structure and containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Implementation.html#parallelism">Parallelism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Implementation.html#debugging">Debugging</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="Validation.html">PeleLMeX Verification &amp; Validations</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="Validation.html#laminar-premixed-flame">Laminar premixed flame</a></li>
 <li class="toctree-l2"><a class="reference internal" href="Validation.html#laminar-poiseuille-flow">Laminar Poiseuille flow</a></li>
@@ -121,15 +131,18 @@ point your web browser at the file <code class="docutils literal notranslate"><s
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="LMeXControls.html">PeleLMeX controls</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#computational-domain-definition">Computational domain definition</a></li>
-<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#amr-parameters">AMR parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#grid-amr-parameters">Grid/AMR parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#load-balancing">Load balancing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#time-stepping-parameters">Time stepping parameters</a></li>
 <li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#io-parameters">IO parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#refinement-controls">Refinement controls</a></li>
 <li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#pelelmex-derived-variables">PeleLMeX derived variables</a></li>
 <li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#pelelmex-algorithm">PeleLMeX algorithm</a></li>
 <li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#transport-coeffs-and-les">Transport coeffs and LES</a></li>
 <li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#chemistry-integrator">Chemistry integrator</a></li>
 <li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#embedded-geometry">Embedded Geometry</a></li>
 <li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#linear-solvers">Linear solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#active-control">Active control</a></li>
 <li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#run-time-diagnostics">Run-time diagnostics</a></li>
 <li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#run-time-control">Run-time control</a></li>
 </ul>
@@ -145,7 +158,10 @@ point your web browser at the file <code class="docutils literal notranslate"><s
 <p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="Tutorials.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_FlameSheet.html">Premixed flame sheet with harmonic perturbations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="Tutorials_FlowPastCyl.html">Non-reacting flow past a cylinder</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_BFSFlame.html">Backward facing step anchored premixed flame</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_TripleFlame.html">A simple triple flame</a></li>
 </ul>
 </li>
 </ul>
