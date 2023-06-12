@@ -115,7 +115,7 @@ eos.density_lookup_type = log
 eos.compute_temperature = true
 
 # ----------------------- HIT IC ----------------------------
-ic.hitIC = 1
+ic.hitIC = 0
 ic.input_resolution = 128
 ic.uin_norm = 1.0
 ic.urms0 = 4.0
@@ -129,3 +129,5 @@ ic.input_name = hit_ic_4_128.dat
 ic.input_binaryformat = 0
 ic.buffer_boundary = 0.25
 ic.buffer_thickness = 0.03
+
+peleLM.unity_Le = 1
