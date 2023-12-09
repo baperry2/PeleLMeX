@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Source code &mdash; PeleLMeX 22.12 documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="_static/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="_static/theme.css?v=df66b05f" />
+
+  
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
@@ -107,7 +109,7 @@ an AMR hierarchy data structure and basic regridding functionalities. The code i
 compute-intensive kernels implemented as lambda functions to seamlessly run on CPU and various GPU backends through AMReX
 high performance portatbility abstraction.</p>
 <p>The core of the algorithm is implementation in the <code class="docutils literal notranslate"><span class="pre">advance()</span></code> function which acts on all the levels concurrently.
-Projection operators and advection scheme functions are imported the <a class="reference external" href="https://amrex-codes.github.io/AMReX-Hydro">AMReX-Hydro library</a>
+Projection operators and advection scheme functions are imported the <a class="reference external" href="https://amrex-fluids.github.io/amrex-hydro/docs_html/index.html">AMReX-Hydro library</a>
 while the core of the thermo-chemistry functionalities comes from <a class="reference external" href="https://amrex-combustion.github.io/PelePhysics/">PelePhysics</a> .
 Users are responsible for providing initial and boundary conditions in the local subfolder implementing their case, i.e. it is
 not possible to compile and run <em>PeleLMeX</em> without actually writing a few lines of codes. However, numerous example are provided
