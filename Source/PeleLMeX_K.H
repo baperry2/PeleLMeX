@@ -193,14 +193,15 @@ getVelViscosity(
   using namespace amrex::literals;
 
   // Get rho & Y from rhoY
-  amrex::Real massdens[NUM_SPECIES];
-  for (int n = 0; n < NUM_SPECIES; n++) {
-    massdens[n] = rhoY(i, j, k, n);
-  }
   amrex::Real rho = 0.0_rt;
-  amrex::Real rhoinv = 1.0_rt / rho;
-  amrex::Real y[NUM_SPECIES] = {0.0};
-  pele::physics::PhysicsType::eos_type::RY2RRinvY(massdens, rho, rhoinv, y);
+   for (int n = 0; n < NUM_SPECIES; n++) {
+     rho += rhoY(i, j, k, n);
+   }
+   amrex::Real rhoinv = 1.0_rt / rho;
+   amrex::Real y[NUM_SPECIES] = {0.0};
+   for (int n = 0; n < NUM_SPECIES; n++) {
+     y[n] = rhoY(i, j, k, n) * rhoinv;
+   }
 
   rho *= 1.0e-3_rt; // MKS -> CGS conversion
   amrex::Real temp = T(i, j, k);
