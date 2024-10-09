@@ -1,3 +1,1 @@
-if(PELE_ENABLE_EB)
-  add_subdirectory(PeriodicCases)
-endif()
+add_subdirectory(PeriodicCases)
