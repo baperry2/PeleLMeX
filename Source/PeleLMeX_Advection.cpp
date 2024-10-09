@@ -488,7 +488,9 @@ PeleLM::computeScalarAdvTerms(std::unique_ptr<AdvanceAdvData>& advData)
                   afrac] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
               rho_ed(i, j, k) = 0.0;
               if (afrac(i, j, k) > 0.0) { // Uncovered faces
-                  pele::physics::PhysicsType::eos_type::RY2R(rhoY_ed.cellData(i,j,k), rho_ed(i, j, k));
+                  for (int n = 0; n < NUM_SPECIES; n++) {
+                      rho_ed(i, j, k) += rhoY_ed(i, j, k, n);
+                  }
               }
             });
         } else // Regular boxes
@@ -497,7 +499,10 @@ PeleLM::computeScalarAdvTerms(std::unique_ptr<AdvanceAdvData>& advData)
           amrex::ParallelFor(
             ebx,
             [rho_ed, rhoY_ed] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-                pele::physics::PhysicsType::eos_type::RY2R(rhoY_ed.cellData(i,j,k), rho_ed(i, j, k));
+                rho_ed(i, j, k) = 0.0;
+               for (int n = 0; n < NUM_SPECIES; n++) {
+                 rho_ed(i, j, k) += rhoY_ed(i, j, k, n);
+               }
             });
         }
       }
@@ -746,9 +751,11 @@ PeleLM::computeScalarAdvTerms(std::unique_ptr<AdvanceAdvData>& advData)
     amrex::ParallelFor(
       advData->AofS[lev],
       [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
-          pele::physics::PhysicsType::eos_type::RY2R<amrex::CellData<amrex::Real>,FIRSTSPEC>(
-                                                   aofsma[box_no].cellData(i,j,k),
-          aofsma[box_no](i, j, k, DENSITY));
+          aofsma[box_no](i, j, k, DENSITY) = 0.0;
+          for (int n = 0; n < NUM_SPECIES; n++) {
+           aofsma[box_no](i, j, k, DENSITY) +=
+               aofsma[box_no](i, j, k, FIRSTSPEC + n);
+          }
       });
   }
   Gpu::streamSynchronize();
