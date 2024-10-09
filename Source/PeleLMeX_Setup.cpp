@@ -75,6 +75,34 @@ PeleLM::Setup()
   // Setup the state variables
   variablesSetup();
 
+ // Derived variables
+   derivedSetup();
+
+   // Evaluate variables
+   evaluateSetup();
+
+   // Tagging setup
+   taggingSetup();
+
+ #ifdef PELE_USE_SPRAY
+   SpraySetup();
+ #endif
+ #ifdef PELE_USE_SOOT
+   if (do_soot_solve) {
+     soot_model->define();
+   }
+ #endif
+   // Diagnostics setup
+   createDiagnostics();
+
+   // Boundary Patch Setup
+   if (m_do_patch_mfr != 0) {
+     initBPatches(Geom(0));
+   }
+
+   // Initialize Level Hierarchy data
+   resizeArray();
+
   // Initialize EOS and others
   if (m_incompressible == 0) {
     amrex::Print() << " Initialization of Eos ... \n";
@@ -140,34 +168,6 @@ PeleLM::Setup()
     }
 #endif
   }
-
-  // Derived variables
-  derivedSetup();
-
-  // Evaluate variables
-  evaluateSetup();
-
-  // Tagging setup
-  taggingSetup();
-
-#ifdef PELE_USE_SPRAY
-  SpraySetup();
-#endif
-#ifdef PELE_USE_SOOT
-  if (do_soot_solve) {
-    soot_model->define();
-  }
-#endif
-  // Diagnostics setup
-  createDiagnostics();
-
-  // Boundary Patch Setup
-  if (m_do_patch_mfr != 0) {
-    initBPatches(Geom(0));
-  }
-
-  // Initialize Level Hierarchy data
-  resizeArray();
 
   // Mixture fraction & Progress variable
   if (pele::physics::PhysicsType::eos_type::identifier() != "Manifold") {
