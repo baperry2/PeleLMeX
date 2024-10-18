@@ -28,12 +28,12 @@ int density_bc[] = {amrex::BCType::int_dir,  amrex::BCType::ext_dir,
 int species_bc[] = {amrex::BCType::int_dir,  amrex::BCType::ext_dir,
                     amrex::BCType::foextrap, amrex::BCType::reflect_even,
                     amrex::BCType::foextrap, amrex::BCType::foextrap,
-                    amrex::BCType::ext_dir,  amrex::BCType::ext_dir};
+                    amrex::BCType::foextrap, amrex::BCType::foextrap};
 
 int rhoh_bc[] = {amrex::BCType::int_dir,  amrex::BCType::ext_dir,
                  amrex::BCType::foextrap, amrex::BCType::reflect_even,
                  amrex::BCType::foextrap, amrex::BCType::foextrap,
-                 amrex::BCType::ext_dir,  amrex::BCType::ext_dir};
+                 amrex::BCType::foextrap, amrex::BCType::foextrap};
 
 int temp_bc[] = {amrex::BCType::int_dir,  amrex::BCType::ext_dir,
                  amrex::BCType::foextrap, amrex::BCType::reflect_even,
