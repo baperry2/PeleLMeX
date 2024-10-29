@@ -340,7 +340,6 @@ jobs:
           du -hs ~/.cache/ccache
   GPU-Intel:
     name: GPU-SYCL
-    needs: [Formatting, CPU-GNUmake]
     runs-on: ubuntu-latest
     steps:
       - name: Clone
