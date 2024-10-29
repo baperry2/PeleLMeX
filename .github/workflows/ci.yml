@@ -341,7 +341,7 @@ jobs:
   GPU-Intel:
     name: GPU-SYCL
     needs: [Formatting, CPU-GNUmake]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Clone
         uses: actions/checkout@v4
