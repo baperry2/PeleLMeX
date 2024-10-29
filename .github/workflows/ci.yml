@@ -363,6 +363,10 @@ jobs:
           echo "deb https://apt.repos.intel.com/oneapi all main" \
               | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt-get update
+          echo " DOGS DOGS DOGS "
+          apt-cache madison intel-oneapi-compiler-dpcpp-cpp
+          echo " CATS CATS CATS "
+          apt-cache madison intel-oneapi-mkl-devel
           sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
       - name: Install Ccache
         run: |
