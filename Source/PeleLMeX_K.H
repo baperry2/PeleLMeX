@@ -69,7 +69,7 @@ getTransportCoeff(
     chi_loc, mu_cgs, dummy_xi, lambda_cgs, trans_parm);
 
   // Do CGS -> MKS conversions
-  mu(i, j, k) = c2m::Mu(mu_cgs);
+  mu(i, j, k) = m2c::Mu(c2m::Mu(mu_cgs));
   if (do_fixed_Pr && do_fixed_Le) { // fixed Pr and Le, transport all dependent
                                     // on visc
     amrex::Real cpmix = 0.0_rt;
@@ -94,7 +94,7 @@ getTransportCoeff(
       rhoDi(i, j, k, n) = lambda_cgs * 1.0e-1_rt * LeInv / cpmix;
     }
   } else { // full MA model, with Soret if needed
-    lambda(i, j, k) = c2m::Lambda(lambda_cgs);
+    lambda(i, j, k) = c2m::Lambda(lambda_cgs) * 1e-8;
     for (int n = 0; n < NUM_SPECIES; n++) {
       rhoDi(i, j, k, n) = rhoDi_cgs[n] * Wbar * mwtinv[n] * 1.0e-1_rt;
       if (do_soret) {
