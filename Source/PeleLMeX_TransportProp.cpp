@@ -414,24 +414,9 @@ PeleLM::getDiffusivity(
   // supported
   if ((addTurbContrib != 0) and m_do_les) {
 
-    // If initializing the simulation, always recompute turbulent viscosity
-    // otherwise, only recompute once per level per timestep (at old time)
-    // calcTurbViscosity computes for all levels, so only call from the base
-    // level
-    TimeStamp tstamp;
-    if (getTime(lev, AmrNewTime) == 0.0) {
-      tstamp = AmrNewTime;
-      if (lev == 0) {
-        calcTurbViscosity(tstamp);
-      }
-    } else if (lev == 0 and getTime(lev, AmrOldTime) > m_turb_visc_time[lev]) {
-      tstamp = AmrOldTime;
-      calcTurbViscosity(tstamp);
-      m_turb_visc_time[lev] = getTime(lev, AmrOldTime);
-    } else {
-      tstamp = AmrOldTime;
-    }
-    auto* ldata_p = getLevelDataPtr(lev, tstamp);
+    // Turbulent viscosity - always in old data
+    // (not updated because velocity doesn't get updated until end of advance)
+    auto* ldata_p = getLevelDataPtr(lev, AmrOldTime);
 
     // Identify and add the correct turbulent contribution
     for (int idim = 0; idim < AMREX_SPACEDIM; idim++) {
