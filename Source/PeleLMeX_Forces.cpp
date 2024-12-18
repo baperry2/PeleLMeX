@@ -244,7 +244,7 @@ PeleLM::addScalarDissipation(const TimeStamp& a_timestamp)
   BL_PROFILE("PeleLM::addScalarDissipationRate");
   // no scalar dissipation sources if not using a manifold model
 #ifndef USE_MANIFOLD_EOS
-  return;
+  amrex::ignore_unused(a_timestamp);
 #else
 
   // Dissipation source term for subfilter variances
