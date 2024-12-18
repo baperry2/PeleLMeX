@@ -413,9 +413,7 @@ PeleLM::readParameters()
     m_les_verbose = m_verbose;
     pp.query("plot_les", m_plot_les);
     pp.query("les_v", m_les_verbose);
-    for (int lev = 0; lev <= max_level; ++lev) {
-      m_turb_visc_time.push_back(-1.0E200);
-    }
+    pp.query("les_c_chi", m_les_c_chi);
 #ifdef PELE_USE_EFIELD
     amrex::Abort("LES implementation is not yet compatible with efield/ions");
 #endif
@@ -837,6 +835,7 @@ PeleLM::readIOParameters()
   }
   pp.query("plot_zeroEBcovered", m_plot_zeroEBcovered);
   pp.query("plot_speciesState", m_plotStateSpec);
+  pp.query("plot_extSource", m_plotExtSource);
   m_initial_grid_file = "";
   m_regrid_file = "";
   pp.query("initial_grid_file", m_initial_grid_file);

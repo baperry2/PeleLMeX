@@ -165,6 +165,10 @@ PeleLM::WritePlotFile()
     ncomp += 1;
   }
 
+  if (m_plotExtSource) {
+    ncomp += NVAR;
+  }
+
   //----------------------------------------------------------------
   // Plot MultiFabs
   Vector<MultiFab> mf_plt(finest_level + 1);
@@ -280,6 +284,12 @@ PeleLM::WritePlotFile()
 
   if (m_do_les && m_plot_les) {
     plt_VarsName.push_back("viscturb");
+  }
+
+  if (m_plotExtSource) {
+    for (int ivar = 0; ivar < NVAR; ++ivar) {
+      plt_VarsName.push_back("extsource_" + stateVariableName(ivar));
+    }
   }
 
 #if NUM_ODE > 0
@@ -436,6 +446,12 @@ PeleLM::WritePlotFile()
               +mut_arr_z[box_no](i, j, k) + mut_arr_z[box_no](i, j, k + 1)));
         });
       Gpu::streamSynchronize();
+    }
+    cnt += 1;
+
+    if (m_plotExtSource) {
+      MultiFab::Copy(mf_plt[lev], *m_extSource[lev], 0, cnt, NVAR, 0);
+      cnt += NVAR;
     }
 
 #ifdef AMREX_USE_EB

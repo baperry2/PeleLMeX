@@ -237,6 +237,82 @@ PeleLM::addSpark(const TimeStamp& a_timestamp)
   }
 }
 
+// Manifold model - dissipation rate sources for variances
+void
+PeleLM::addScalarDissipation(const TimeStamp& a_timestamp)
+{
+  BL_PROFILE("PeleLM::addScalarDissipationRate");
+  // no scalar dissipation sources if not using a manifold model
+#ifndef USE_MANIFOLD_EOS
+  return;
+#else
+
+  // Dissipation source term for subfilter variances
+  for (int lev = 0; lev <= finest_level; lev++) {
+
+    auto* ldata_p = getLevelDataPtr(lev, a_timestamp);
+    auto const& leosparm = eos_parms.host_parm();
+
+    // For now - we require the turbulent viscosity to be pre-computed
+    // it always is stored at AmrOldTime, so we just use that
+    // We need cell-centered mu_t but have it at faces
+    // The simple interpolation below probably isn't valid for EB
+#ifdef AMREX_USE_EB
+    amrex::Abort(
+      "PeleLM::addScalarDissipation(): this is not supported with EB");
+#endif
+
+    for (int n = 0; n < MANIFOLD_DIM; ++n) {
+      if (leosparm.is_variance_of[n] >= 0) {
+        if (!m_do_les) {
+          amrex::Abort("PeleLM::addScalarDissipation(): cannot add a "
+                       "scalarDissipation without an active LES model");
+        }
+
+        constexpr amrex::Real fact = 0.5 / AMREX_SPACEDIM;
+        const amrex::Real C_chi = m_les_c_chi;
+
+        AMREX_D_TERM(auto const& mut_arr_x =
+                       m_leveldata_old[lev]->visc_turb_fc[0].const_arrays();
+                     , auto const& mut_arr_y =
+                         m_leveldata_old[lev]->visc_turb_fc[1].const_arrays();
+                     , auto const& mut_arr_z =
+                         m_leveldata_old[lev]->visc_turb_fc[2].const_arrays();)
+        auto extma = m_extSource[lev]->arrays();
+        auto statema = ldata_p->state.const_arrays();
+
+        // l_scale will also need modification for EB
+        const amrex::Real vol = AMREX_D_TERM(
+          geom[lev].CellSize(0), *geom[lev].CellSize(1),
+          *geom[lev].CellSize(2));
+        const amrex::Real l_scale =
+          (AMREX_SPACEDIM == 2) ? std::sqrt(vol) : std::cbrt(vol);
+        const amrex::Real inv_l_scale2 = 1.0 / (l_scale * l_scale);
+
+        amrex::ParallelFor(
+          *m_extSource[lev],
+          [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
+            amrex::Real mu_t =
+              fact *
+              (AMREX_D_TERM(
+                mut_arr_x[box_no](i, j, k) + mut_arr_x[box_no](i + 1, j, k),
+                +mut_arr_y[box_no](i, j, k) + mut_arr_y[box_no](i, j + 1, k),
+                +mut_arr_z[box_no](i, j, k) + mut_arr_z[box_no](i, j, k + 1)));
+
+            // Linear Relaxation model
+            // rho chi_sgs = C_chi * mu_t / Delta^2 * Variance
+            extma[box_no](i, j, k, FIRSTSPEC + n) -=
+              C_chi * mu_t * inv_l_scale2 *
+              statema[box_no](i, j, k, FIRSTSPEC + n);
+          });
+      }
+    }
+    Gpu::streamSynchronize();
+  }
+
+#endif
+}
+
 // Calculate additional external sources (soot, radiation, user defined, etc.)
 void
 PeleLM::getExternalSources(
@@ -267,6 +343,8 @@ PeleLM::getExternalSources(
     BL_PROFILE_VAR_STOP(PLM_RAD);
   }
 #endif
+
+  addScalarDissipation(a_timestamp_old);
 
   // User defined external sources
   if (m_user_defined_ext_sources) {

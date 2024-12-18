@@ -827,6 +827,8 @@ public:
 
   void addSpark(const PeleLM::TimeStamp& a_time);
 
+  void addScalarDissipation(const PeleLM::TimeStamp& a_time);
+
   //-----------------------------------------------------------------------------
 
 #ifdef PELE_USE_SPRAY
@@ -1802,6 +1804,7 @@ public:
   int m_plotChemDiag = 0;
   int m_plotHeatRelease = 0;
   int m_plotStateSpec = 0;
+  int m_plotExtSource = 0;
   int m_plot_int = 0;
   bool m_plot_overwrite = false;
   int m_plot_zeroEBcovered = 1;
@@ -1911,7 +1914,7 @@ public:
   amrex::Real m_les_cs_smag = 0.18;
   amrex::Real m_les_cm_wale = 0.60;
   amrex::Real m_les_cs_sigma = 1.35;
-  amrex::Vector<amrex::Real> m_turb_visc_time;
+  amrex::Real m_les_c_chi = 20.0;
 
   // switch on/off different processes
   // TODO: actually implement that
