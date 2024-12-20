@@ -1804,7 +1804,7 @@ public:
   int m_plotChemDiag = 0;
   int m_plotHeatRelease = 0;
   int m_plotStateSpec = 0;
-  bool m_plotExtSource = 0;
+  bool m_plotExtSource = false;
   int m_plot_int = 0;
   bool m_plot_overwrite = false;
   int m_plot_zeroEBcovered = 1;

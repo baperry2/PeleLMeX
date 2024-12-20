@@ -451,7 +451,7 @@ PeleLM::WritePlotFile()
 
     if (m_plotExtSource) {
       MultiFab::Copy(mf_plt[lev], *m_extSource[lev], 0, cnt, NVAR, 0);
-      cnt += NVAR;
+      // cnt += NVAR;
     }
 
 #ifdef AMREX_USE_EB
