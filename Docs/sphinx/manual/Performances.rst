@@ -12,6 +12,8 @@ gain of using accelerator within `PeleLMeX` is a moving target as both hardware 
 continuously improving. In the following we demonstrate the gain at a given time (specified and
 subject to updates) and on selected platforms.
 
+Here are some badly spelled wrods spleling troot applesace
+
 
 Single node performances: FlameSheet case
 -----------------------------------------
