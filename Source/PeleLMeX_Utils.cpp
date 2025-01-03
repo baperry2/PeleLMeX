@@ -11,6 +11,7 @@ using namespace amrex;
 
 // Here's a comment with bad spleling
 // just another wrong wrod
+// also wrong:  isothemral
 
 void
 writeBuildInfo()
