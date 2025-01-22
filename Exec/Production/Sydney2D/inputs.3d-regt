@@ -1,0 +1,206 @@
+#----------------------DOMAIN DEFINITION------------------------
+geometry.is_periodic = 0 0 0              # For each dir, 0: non-perio, 1: periodic
+geometry.coord_sys   = 0                  # 0 => cart, 1 => RZ
+geometry.prob_lo     = -.12 -.12 0.0        # x_lo y_lo (z_lo)
+geometry.prob_hi     = .12  .12 0.24  # x_hi y_hi (z_hi)
+
+# >>>>>>>>>>>>>  BC FLAGS <<<<<<<<<<<<<<<<
+# Interior, Inflow, Outflow, Symmetry,
+# SlipWallAdiab, NoSlipWallAdiab, SlipWallIsotherm, NoSlipWallIsotherm
+peleLM.lo_bc = Outflow  Outflow Inflow
+peleLM.hi_bc = Outflow  Outflow Outflow
+
+#-------------------------AMR CONTROL----------------------------
+#amr.n_cell          = 64 64 128        # Level 0 number of cells in each direction
+amr.n_cell          = 48 48 48         # Level 0 number of cells in each direction
+amr.v               = 2                # AMR verbose
+amr.max_level       = 5               # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2          # refinement ratio
+amr.regrid_int      = 10                # how often to regrid
+amr.n_error_buf     = 0         # number of buffer cells in error est
+amr.grid_eff        = 0.9              # what constitutes an efficient grid
+amr.blocking_factor = 8              # block factor in grid generation (min box size)
+amr.max_grid_size   = 64               # max box size
+
+#----------------------TIME STEPING CONTROL----------------------
+amr.max_step            = 12345678             # maximum number of time steps
+amr.stop_time           = 10            # final physical time
+amr.max_wall_time    = 47.9
+amr.cfl              = 0.5              # cfl number for hyperbolic system
+#amr.dt_shrink        = 0.0001            # scale back initial timestep
+amr.dt_change_max    = 1.33              # max timestep size increase
+#ns.init_dt          = 1.e-7
+amr.init_dt         = 1e-10
+
+#-------------------------IO CONTROL----------------------------
+amr.checkpoint_files_output = 1
+amr.check_file          = chk          # root name of checkpoint file
+amr.check_int           = 500          # number of timesteps between checkpoints
+amr.plot_file           = plt          # root name of plot file
+amr.plot_int            = 500           # number of timesteps between plot files
+amr.derive_plot_vars    = mag_vort avg_pressure mass_fractions # maniout
+amr.grid_log            = grdlog       # name of grid logging file
+
+#----------------------- PROBLEM PARAMETERS---------------------
+prob.P_mean = 101325.0
+prob.v_jet      = 50.0
+prob.v_pilot    = 20.0
+prob.v_coflow      = 15.0
+prob.Do_jet         = 7.5e-3
+prob.Di_pilot        = 8.0e-3
+prob.Do_pilot        = 18.0e-3
+prob.Di_coflow        = 18.4e-3
+prob.Y_jet = 0.0 1.0 1.0
+prob.Y_pilot = 0.23 0.25367686220455 1.0
+#prob.Y_jet = 1.0 0.0 1.0
+#prob.Y_pilot = 0.25367686220455 0.23 1.0
+prob.Y_coflow =0.0 0.0 1.0
+# prob.zstar_pos = 1
+
+prob.turb_inflow_type = 1
+prob.turb_inflow_file = /projects/hpacf/bperry/sydney/inflow_300.v59
+
+#-------------------------PeleLM CONTROL----------------------------
+peleLM.v = 3
+peleLM.incompressible = 0
+peleLM.rho = 1.17
+peleLM.mu = 0.0
+peleLM.use_wbar = 0
+peleLM.sdc_iterMax = 4
+peleLM.floor_species = 0
+peleLM.advection_scheme = Godunov_BDS
+peleLM.gravity = 0.0 0.0 -9.81   
+
+#--------------------REFINEMENT CONTROL------------------------
+
+amr.refinement_indicators = gradT InBox5 InBox4 InBox3 # magvort
+
+#amr.flame_tracer.max_level     = 3
+#amr.flame_tracer.value_greater = 1.e-6
+#amr.flame_tracer.field_name    = Y(O2)
+
+amr.gradT.max_level = 3
+amr.gradT.adjacent_difference_greater = 200
+amr.gradT.field_name = temp
+
+amr.InBox5.max_level = 5
+amr.InBox5.in_box_lo = -0.01 -0.01 0.00
+amr.InBox5.in_box_hi =  0.01  0.01 0.12
+
+amr.InBox4.max_level = 4
+amr.InBox4.in_box_lo = -0.015 -0.015 0.10
+amr.InBox4.in_box_hi =  0.015  0.015 0.16
+
+amr.InBox3.max_level = 3
+amr.InBox3.in_box_lo = -0.02 -0.02 0.15
+amr.InBox3.in_box_hi =  0.02  0.02 0.30
+
+#Refinement according to the vorticity, no field_name needed
+#amr.magvort.max_level = 6
+#amr.magvort.vorticity_greater = 1e5
+
+# --------------- INPUTS TO CHEMISTRY REACTOR ---------------
+peleLM.chem_integrator = "ReactorRK64"
+peleLM.use_typ_vals_chem = 1          # Use species/temp typical values in CVODE
+ode.rtol = 1.0e-6                     # Relative tolerance of the chemical solve
+ode.atol = 1.0e-5                     # Absolute tolerance factor applied on typical values
+cvode.solve_type = denseAJ_direct     # CVODE Linear solve type (for Newton direction)
+cvode.max_order  = 4                  # CVODE max BDF order.
+
+ode.rk64_nsubsteps_guess = 2
+ode.rk64_nsubsteps_min = 2
+
+
+#--------------------------DEBUG/REGTESTS INPUTS-----------------------------
+amrex.regtest_reduction=1
+#amrex.fpe_trap_invalid = 1
+#amrex.fpe_trap_zero = 1
+#amrex.fpe_trap_overflow = 1
+
+# amr.restart         = chk20000
+
+manifold.model = Table
+manifold.v = 1
+manifold.table.filename = /projects/hpacf/bperry/sydney/sydney_2D_xf03333.ctb
+manifold.nominal_pressure_cgs = 1013250.0
+peleLM.use_wbar = 0
+peleLM.chi_correction_type = "DivuFirstIter"
+eos.has_mani_src = true
+manifold.compute_temperature = true
+
+nodal_proj.verbose = 1
+mac_proj.verbose = 1
+diffusion.verbose = 1
+
+peleLM.les_model = Smagorinsky
+peleLM.unity_Le = 1
+peleLM.les_cs_smag = 0.18
+peleLM.Prandtl = 0.7
+peleLM.les_v = 3
+peleLM.plot_les = 1
+
+peleLM.diagnostics = xnormal ynormal zoverD001 zoverD005 zoverD010 zoverD015 zoverD020 zoverD030
+
+peleLM.xnormal.type = DiagFramePlane
+peleLM.xnormal.normal = 0
+peleLM.xnormal.int = 100
+peleLM.xnormal.center = 0.0
+peleLM.xnormal.interpolation = Linear
+peleLM.xnormal.file = stats/xNorm/plt
+peleLM.xnormal.field_names = density x_velocity y_velocity z_velocity Y(PROG) Y(ZMIX) Y(XRHO) RhoRT temp MANI_Y-H2O MANI_Y-H2 MANI_Y-CO MANI_Y-CO2 MANI_Y-O2 MANI_Y-N2 MANI_Y-CH4 MANI_Y-OH MANI_SRC_PROG MANI_VISC MANI_DIFF 
+
+peleLM.ynormal.type = DiagFramePlane
+peleLM.ynormal.normal = 1
+peleLM.ynormal.int = 100
+peleLM.ynormal.center = 0.0
+peleLM.ynormal.interpolation = Linear
+peleLM.ynormal.file = stats/yNorm/plt
+peleLM.ynormal.field_names = density x_velocity y_velocity z_velocity Y(PROG) Y(ZMIX) Y(XRHO) RhoRT temp MANI_Y-H2O MANI_Y-H2 MANI_Y-CO MANI_Y-CO2 MANI_Y-O2 MANI_Y-N2 MANI_Y-CH4 MANI_Y-OH MANI_SRC_PROG MANI_VISC MANI_DIFF
+
+peleLM.zoverD001.type = DiagFramePlane
+peleLM.zoverD001.normal = 2
+peleLM.zoverD001.int = 100
+peleLM.zoverD001.center = 0.0075
+peleLM.zoverD001.interpolation = Linear
+peleLM.zoverD001.file = stats/zoverD001/plt
+peleLM.zoverD001.field_names = density x_velocity y_velocity z_velocity Y(PROG) Y(ZMIX) Y(XRHO) RhoRT temp MANI_Y-H2O MANI_Y-H2 MANI_Y-CO MANI_Y-CO2 MANI_Y-O2 MANI_Y-N2 MANI_Y-CH4 MANI_Y-OH MANI_SRC_PROG MANI_VISC MANI_DIFF
+
+peleLM.zoverD005.type = DiagFramePlane
+peleLM.zoverD005.normal = 2
+peleLM.zoverD005.int = 100
+peleLM.zoverD005.center = 0.0375
+peleLM.zoverD005.interpolation = Linear
+peleLM.zoverD005.file = stats/zoverD005/plt
+peleLM.zoverD005.field_names = density x_velocity y_velocity z_velocity Y(PROG) Y(ZMIX) Y(XRHO) RhoRT temp MANI_Y-H2O MANI_Y-H2 MANI_Y-CO MANI_Y-CO2 MANI_Y-O2 MANI_Y-N2 MANI_Y-CH4 MANI_Y-OH MANI_SRC_PROG MANI_VISC MANI_DIFF
+
+peleLM.zoverD010.type = DiagFramePlane
+peleLM.zoverD010.normal = 2
+peleLM.zoverD010.int = 100
+peleLM.zoverD010.center = 0.075
+peleLM.zoverD010.interpolation = Linear
+peleLM.zoverD010.file = stats/zoverD010/plt
+peleLM.zoverD010.field_names = density x_velocity y_velocity z_velocity Y(PROG) Y(ZMIX) Y(XRHO) RhoRT temp MANI_Y-H2O MANI_Y-H2 MANI_Y-CO MANI_Y-CO2 MANI_Y-O2 MANI_Y-N2 MANI_Y-CH4 MANI_Y-OH MANI_SRC_PROG MANI_VISC MANI_DIFF
+
+peleLM.zoverD015.type = DiagFramePlane
+peleLM.zoverD015.normal = 2
+peleLM.zoverD015.int = 100
+peleLM.zoverD015.center = 0.1125
+peleLM.zoverD015.interpolation = Linear
+peleLM.zoverD015.file = stats/zoverD015/plt
+peleLM.zoverD015.field_names = density x_velocity y_velocity z_velocity Y(PROG) Y(ZMIX) Y(XRHO) RhoRT temp MANI_Y-H2O MANI_Y-H2 MANI_Y-CO MANI_Y-CO2 MANI_Y-O2 MANI_Y-N2 MANI_Y-CH4 MANI_Y-OH MANI_SRC_PROG MANI_VISC MANI_DIFF
+
+peleLM.zoverD020.type = DiagFramePlane
+peleLM.zoverD020.normal = 2
+peleLM.zoverD020.int = 100
+peleLM.zoverD020.center = 0.150
+peleLM.zoverD020.interpolation = Linear
+peleLM.zoverD020.file = stats/zoverD020/plt
+peleLM.zoverD020.field_names = density x_velocity y_velocity z_velocity Y(PROG) Y(ZMIX) Y(XRHO) RhoRT temp MANI_Y-H2O MANI_Y-H2 MANI_Y-CO MANI_Y-CO2 MANI_Y-O2 MANI_Y-N2 MANI_Y-CH4 MANI_Y-OH MANI_SRC_PROG MANI_VISC MANI_DIFF
+
+peleLM.zoverD030.type = DiagFramePlane
+peleLM.zoverD030.normal = 2
+peleLM.zoverD030.int = 100
+peleLM.zoverD030.center = 0.225
+peleLM.zoverD030.interpolation = Linear
+peleLM.zoverD030.file = stats/zoverD030/plt
+peleLM.zoverD030.field_names = density x_velocity y_velocity z_velocity Y(PROG) Y(ZMIX) Y(XRHO) RhoRT temp MANI_Y-H2O MANI_Y-H2 MANI_Y-CO MANI_Y-CO2 MANI_Y-O2 MANI_Y-N2 MANI_Y-CH4 MANI_Y-OH MANI_SRC_PROG MANI_VISC MANI_DIFF
