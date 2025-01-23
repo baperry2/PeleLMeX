@@ -414,9 +414,18 @@ PeleLM::getDiffusivity(
   // supported
   if ((addTurbContrib != 0) and m_do_les) {
 
-    // Turbulent viscosity - always in old data
+    // Turbulent viscosity - always in old data except during initialization
     // (not updated because velocity doesn't get updated until end of advance)
-    auto* ldata_p = getLevelDataPtr(lev, AmrOldTime);
+    TimeStamp tstamp;
+    if (getTime(lev, AmrNewTime) == 0.0) {
+      tstamp = AmrNewTime;
+      if (lev == 0) {
+        calcTurbViscosity(tstamp);
+      }
+    } else {
+      tstamp = AmrOldTime;
+    }
+    auto* ldata_p = getLevelDataPtr(lev, tstamp);
 
     // Identify and add the correct turbulent contribution
     for (int idim = 0; idim < AMREX_SPACEDIM; idim++) {
