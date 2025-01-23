@@ -14,7 +14,7 @@ peleLM.hi_bc = Outflow  Outflow Outflow
 #amr.n_cell          = 64 64 128        # Level 0 number of cells in each direction
 amr.n_cell          = 48 48 48         # Level 0 number of cells in each direction
 amr.v               = 2                # AMR verbose
-amr.max_level       = 5               # maximum level number allowed
+amr.max_level       = 3               # maximum level number allowed
 amr.ref_ratio       = 2 2 2 2          # refinement ratio
 amr.regrid_int      = 10                # how often to regrid
 amr.n_error_buf     = 0         # number of buffer cells in error est
@@ -37,7 +37,8 @@ amr.checkpoint_files_output = 1
 amr.check_file          = chk          # root name of checkpoint file
 amr.check_int           = 500          # number of timesteps between checkpoints
 amr.plot_file           = plt          # root name of plot file
-amr.plot_int            = 500           # number of timesteps between plot files
+amr.plot_int            = 500            # number of timesteps between plot files
+amr.plot_speciesState   = 1
 amr.derive_plot_vars    = mag_vort avg_pressure mass_fractions # maniout
 amr.grid_log            = grdlog       # name of grid logging file
 
@@ -54,11 +55,11 @@ prob.Y_jet = 0.0 1.0 1.0
 prob.Y_pilot = 0.23 0.25367686220455 1.0
 #prob.Y_jet = 1.0 0.0 1.0
 #prob.Y_pilot = 0.25367686220455 0.23 1.0
-prob.Y_coflow =0.0 0.0 1.0
+prob.Y_coflow = 0.0 0.0 1.0
 # prob.zstar_pos = 1
 
 prob.turb_inflow_type = 1
-prob.turb_inflow_file = /projects/hpacf/bperry/sydney/inflow_300.v59
+prob.turb_inflow_file = /projects/safvto/bperry/sydney_new/data/inflow_300.v59
 
 #-------------------------PeleLM CONTROL----------------------------
 peleLM.v = 3
@@ -107,35 +108,45 @@ ode.atol = 1.0e-5                     # Absolute tolerance factor applied on typ
 cvode.solve_type = denseAJ_direct     # CVODE Linear solve type (for Newton direction)
 cvode.max_order  = 4                  # CVODE max BDF order.
 
-ode.rk64_nsubsteps_guess = 2
+ode.rk64_nsubsteps_guess = 2 
 ode.rk64_nsubsteps_min = 2
 
 
 #--------------------------DEBUG/REGTESTS INPUTS-----------------------------
 amrex.regtest_reduction=1
-#amrex.fpe_trap_invalid = 1
-#amrex.fpe_trap_zero = 1
-#amrex.fpe_trap_overflow = 1
+amrex.fpe_trap_invalid = 1
+amrex.fpe_trap_zero = 1
+amrex.fpe_trap_overflow = 1
 
 # amr.restart         = chk20000
 
+peleLM.deltaT_iterMax = 0
+peleLM.deltaT_tol = 1e100
+
 manifold.model = Table
 manifold.v = 1
-manifold.table.filename = /projects/hpacf/bperry/sydney/sydney_2D_xf03333.ctb
+manifold.table.filename = /projects/safvto/bperry/sydney_new/data/sydney_2D_xf03333.ctb
 manifold.nominal_pressure_cgs = 1013250.0
 peleLM.use_wbar = 0
 peleLM.chi_correction_type = "DivuFirstIter"
 eos.has_mani_src = true
 manifold.compute_temperature = true
+manifold.density_lookup_type = log
 
 nodal_proj.verbose = 1
 mac_proj.verbose = 1
 diffusion.verbose = 1
 
+#peleLM.num_init_iter = 0               # [OPT, DEF=3] Number of iterations to get initial pressure
+#peleLM.num_divu_iter = 0               # [OPT, DEF=1] Number of divU iterations to get initial dt estimate
+#peleLM.do_init_proj = 0                # [OPT, DEF=1] Control over initial projection
+
 peleLM.les_model = Smagorinsky
-peleLM.unity_Le = 1
+peleLM.fixed_Le = 1
 peleLM.les_cs_smag = 0.18
 peleLM.Prandtl = 0.7
+peleLM.Schmidt = 0.7
+peleLM.Lewis = 0.7
 peleLM.les_v = 3
 peleLM.plot_les = 1
 
