@@ -1,0 +1,33 @@
+This case is set up to run the Sydney Inhomogeneous Burner in the Lr300-v59
+configuration. In that configuration, the fuel inlet is nearly premixed. The
+case runs with a 2D manifold (ZMIX, PROG) based on nonpremixed counterflow
+flamelets. Z=1 is set to correspond to phi=4.6 (the mean equivalence ratio from
+the mixing tube) rather than pure CH4. In this case, mixture fraction
+fluctuations in the fuel inlet stream are neglected and it is just set to Z=1.
+
+The case can be run with up to 5 levels of refinement.  I'd recommend starting
+with 3 levels (which fits well on a single Kestrel node), then increasing
+after the flow develops a bit and running on more nodes. The case is set up
+for a combination of static and adaptive refinement. 2D plane data is saved
+at axial locations corresponding to where experimental measurements were made.
+
+Once the case is run, statistics can be computed and compared to experiment.
+In the generated figures, black is mean and red is RMS. Lines are the
+simulation, dots are experiment. The command below will average data from
+all 2D plt files matching the path provided and compare to the appropriate
+experimental data. The command can be repeated for each zoverD. 
+
+     python radial_stats.py -f "stats/zoverD001/plt001*0" -s
+
+Not included in this repo, but important files are located on Ketsrel at
+
+    /projects/safvto/bruce/sydney_new/data
+
+These files include the experimental data (data2015 and data5GP, the latter
+of which is the "better" data set). There are several chemtable files
+for various modeling approaches. The one used here is `sydney_2D_xf03333.ctb`.
+There are three turbulent inflow files, for the Lr300_v59, Lr75_v57, Lr75_v80
+cases as indicated. These files contain the velocity, mixture fraction
+(defined with Z=1 being pure CH4), and mixture fraction squared (used to
+compute mixture fraction variance), at a plane 1 diameter upstream
+of the nozzle exit plane. 
