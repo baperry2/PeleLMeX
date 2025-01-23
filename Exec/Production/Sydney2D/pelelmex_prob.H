@@ -332,12 +332,11 @@ bcnormal(
       // Jet
       if (prob_parm.turb_inflow_type == 1) {
         amrex::Real Y_jet[NUM_SPECIES];
+        InterpolateVelInflow(radius, angle, s_ext[VELX], s_ext[VELY], s_ext[VELZ], Y_jet[prob_parm.zstar_pos], time, prob_parm);
+	// Ignore Z from inflow data
         for (int n = 0; n < NUM_SPECIES; n++) {
           Y_jet[n] = prob_parm.Y_jet[n];
         }
-        InterpolateVelInflow(radius, angle, s_ext[VELX], s_ext[VELY], s_ext[VELZ], Y_jet[prob_parm.zstar_pos], time, prob_parm);
-        //std::cout << " I AM HERE " << s_ext[VELX] << " " << s_ext[VELY] << " "
-        //         << s_ext[VELZ] << " " << Y_jet[1] << " " << angle << " " << radius << std::endl;
         eos.PYT2R(dummy, Y_jet, dummy, rho_cgs);
         s_ext[DENSITY] = rho_cgs * 1.0e3;
         eos.HY2T(dummy, Y_jet, s_ext[TEMP]);
