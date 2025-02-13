@@ -26,7 +26,7 @@ FSANITIZER = FALSE
 THREAD_SANITIZER = FALSE
 
 # PelePhysics
-Chemistry_Model = chem-CH4-2step
+Chemistry_Model = air
 Eos_Model = Fuego
 Transport_Model = Simple
 

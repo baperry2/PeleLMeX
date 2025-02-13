@@ -34,18 +34,17 @@ pelelmex_initdata(
 
   amrex::Real massfrac[NUM_SPECIES] = {0.0};
 
-  massfrac[CH4_ID] = 0.0;
-  massfrac[O2_ID] = prob_parm.Y_o2;
-  massfrac[N2_ID] = 1.0 - massfrac[CH4_ID] - massfrac[O2_ID];
+  massfrac[O2_ID] = 0.23;
+  massfrac[N2_ID] = 1.0 - massfrac[O2_ID];
 
-  AMREX_D_TERM(state(i, j, k, VELX) = prob_parm.meanFlowMag;
+  AMREX_D_TERM(state(i, j, k, VELX) = prob_parm.u_0;
                , state(i, j, k, VELY) = 0.0;, state(i, j, k, VELZ) = 0.0);
 
   if (!(is_incompressible == 0)) {
     return;
   }
 
-  state(i, j, k, TEMP) = prob_parm.T_hot;
+  state(i, j, k, TEMP) = prob_parm.T_0;
 
   amrex::Real P_cgs = prob_parm.P_mean * 10.0;
 
@@ -81,17 +80,15 @@ bcnormal(
 {
   if (sgn == 1) {
     amrex::Real massfrac[NUM_SPECIES] = {0.0};
+    massfrac[O2_ID] = 0.23;
+    massfrac[N2_ID] = 1.0 - massfrac[O2_ID];
 
     auto eos = pele::physics::PhysicsType::eos();
 
-    AMREX_D_TERM(s_ext[VELX] = prob_parm.meanFlowMag;, s_ext[VELY] = 0.0;
+    AMREX_D_TERM(s_ext[VELX] = prob_parm.u_in;, s_ext[VELY] = 0.0;
                  , s_ext[VELZ] = 0.0);
 
-    massfrac[CH4_ID] = prob_parm.Y_fuel;
-    massfrac[O2_ID] = prob_parm.Y_o2;
-    massfrac[N2_ID] = 1.0 - massfrac[CH4_ID] - massfrac[O2_ID];
-
-    s_ext[TEMP] = prob_parm.T_mean;
+    s_ext[TEMP] = prob_parm.T_in;
 
     amrex::Real rho_cgs, P_cgs, RhoH_temp;
     P_cgs = prob_parm.P_mean * 10.0;
@@ -105,11 +102,6 @@ bcnormal(
     for (int n = 0; n < NUM_SPECIES; n++) {
       s_ext[FIRSTSPEC + n] = massfrac[n] * s_ext[DENSITY];
     }
-  }
-
-  // Set domain boundary Temp on the y-low face when using NoSlipWallIsotherm
-  if (idir == 1 && sgn == 1) {
-    s_ext[TEMP] = prob_parm.Twall;
   }
 }
 
