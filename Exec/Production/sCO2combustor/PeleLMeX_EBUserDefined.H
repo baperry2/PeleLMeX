@@ -32,17 +32,19 @@ setEBState(
 
 struct GeomParms
 {
-  amrex::Real d_cyl = 7.542;
-  amrex::Real l_nozzle = 4.789;
-  amrex::Real d_nozzle = 1.780;
-  amrex::Real d_hole = 0.5;
+  amrex::Real d_cyl = 0.07542;
+  amrex::Real l_nozzle = 0.04789;
+  amrex::Real d_nozzle = 0.025;
+  amrex::Real d_hole = 0.005;
   amrex::GpuArray<amrex::Real, NROWS> l_holes = {
-    5.184, 6.5 + 5.184, 4.846 + 5.184 + 6.5}; // 5.184, 11.684, 16.53
+    0.05184, 0.065 + 0.05184,
+    0.04846 + 0.05184 + 0.065}; // 5.184, 11.684, 16.53
   amrex::GpuArray<int, NROWS> n_holes = {6, 12, 12};
   amrex::GpuArray<amrex::Real, NROWS> offset_angle_holes = {
     0.0, 0.0, 10 * M_PI / 180};
-  amrex::Real l_combustor = 23.711;
-  amrex::Real l_exit = 1.0;
+  amrex::Real l_combustor = 0.23711;
+  amrex::Real l_exit = 0.010;
+  int do_dilution_holes = 4;
 };
 
 void
@@ -64,6 +66,7 @@ parse_params(GeomParms* prob_parm_device)
   pp.query("d_hole", prob_parm_device->d_hole);
   pp.query("l_combustor", prob_parm_device->l_combustor);
   pp.query("l_exit", prob_parm_device->l_exit);
+  pp.query("do_dilution_holes", prob_parm_device->do_dilution_holes);
 }
 
 #ifdef AMREX_USE_EB
@@ -112,10 +115,10 @@ EBUserDefined(
     {AMREX_D_DECL(pp->l_holes[1], 0, 0)},
     {AMREX_D_DECL(pp->l_holes[2], 0, 0)}};
 
-  auto comb = amrex::EB2::makeIntersection(
-    main,
-    amrex::EB2::translate(
-      amrex::EB2::rotate(hole, angles_holes[0][0], 0), offset_holes[0]),
+  auto first_hole = amrex::EB2::translate(
+    amrex::EB2::rotate(hole, angles_holes[0][0], 0), offset_holes[0]);
+  auto first_row = amrex::EB2::makeIntersection(
+    first_hole,
     amrex::EB2::translate(
       amrex::EB2::rotate(hole, angles_holes[0][1], 0), offset_holes[0]),
     amrex::EB2::translate(
@@ -125,7 +128,9 @@ EBUserDefined(
     amrex::EB2::translate(
       amrex::EB2::rotate(hole, angles_holes[0][4], 0), offset_holes[0]),
     amrex::EB2::translate(
-      amrex::EB2::rotate(hole, angles_holes[0][5], 0), offset_holes[0]),
+      amrex::EB2::rotate(hole, angles_holes[0][5], 0), offset_holes[0]));
+  auto all_holes = amrex::EB2::makeIntersection(
+    first_row,
     amrex::EB2::translate(
       amrex::EB2::rotate(hole, angles_holes[1][0], 0), offset_holes[1]),
     amrex::EB2::translate(
@@ -200,10 +205,32 @@ EBUserDefined(
     {AMREX_D_DECL(pp->l_combustor, 0, 0)}, true);
   auto nozzle_exit = amrex::EB2::makeIntersection(nozzle, exit);
 
-  auto polys = amrex::EB2::makeUnion(comb, nozzle_exit);
-  auto gshop = amrex::EB2::makeShop(polys);
-  amrex::EB2::Build(
-    gshop, geom, required_coarsening_level, max_coarsening_level, 4, false);
+  if (pp->do_dilution_holes == 0) {
+    auto polys = amrex::EB2::makeUnion(main, nozzle_exit);
+    auto gshop = amrex::EB2::makeShop(polys);
+    amrex::EB2::Build(
+      gshop, geom, required_coarsening_level, max_coarsening_level, 4, false);
+  } else if (pp->do_dilution_holes == 1) {
+    auto comb = amrex::EB2::makeIntersection(main, first_hole);
+    auto polys = amrex::EB2::makeUnion(comb, nozzle_exit);
+    auto gshop = amrex::EB2::makeShop(polys);
+    amrex::EB2::Build(
+      gshop, geom, required_coarsening_level, max_coarsening_level, 4, false);
+  } else if (pp->do_dilution_holes == 2) {
+    auto comb = amrex::EB2::makeIntersection(main, first_row);
+    auto polys = amrex::EB2::makeUnion(comb, nozzle_exit);
+    auto gshop = amrex::EB2::makeShop(polys);
+    amrex::EB2::Build(
+      gshop, geom, required_coarsening_level, max_coarsening_level, 4, false);
+  } else if (pp->do_dilution_holes == 3) {
+    auto comb = amrex::EB2::makeIntersection(main, all_holes);
+    auto polys = amrex::EB2::makeUnion(comb, nozzle_exit);
+    auto gshop = amrex::EB2::makeShop(polys);
+    amrex::EB2::Build(
+      gshop, geom, required_coarsening_level, max_coarsening_level, 4, false);
+  } else {
+    amrex::Abort("Invalid input option");
+  }
 }
 #endif
 #endif

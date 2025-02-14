@@ -2,8 +2,8 @@
 geometry.is_periodic = 0 0                  # For each dir, 0: non-perio, 1: periodic
 geometry.coord_sys   = 0                    # 0 => cart, 1 => RZ
 
-geometry.prob_lo     =  0.0 -4.7025 -4.7025
-geometry.prob_hi     =  25.08 4.7025 4.7025
+geometry.prob_lo     =  0.0 -0.047025 -0.047025
+geometry.prob_hi     =  0.2508 0.047025 0.047025
 amr.n_cell           =  256 96 96
 
 #---------------------- BC FLAGS ---------------------------------
@@ -28,13 +28,14 @@ prob.T_0 = 298.0
 prob.P_mean = 101325.0
 prob.T_in = 300
 prob.u_in = 10.0
-prob.u_0 = 10.0
-
+prob.u_0 = 9.0
+prob.do_dilution_holes = 3  # 0 -> no holes; 1 -> 1 hole; 2 -> 1 row of holes; 3 -> all holes 
+ 
 #---------------------- PeleLM CONTROL ---------------------------
 peleLM.v = 1                                # PeleLMeX verbose
 peleLM.use_wbar = 1                         # Include Wbar term in species diffusion fluxes
 peleLM.sdc_iterMax = 2                      # Number of SDC iterations
-#peleLM.num_init_iter = 1                    # Number of initial iterations
+#peleLM.num_init_iter = 0                    # Number of initial iterations
 #peleLM.do_init_proj = 0                    # Number of initial iterations
 peleLM.floor_species = 0                    # Enforce species positivity (non-conservative !)            
 
