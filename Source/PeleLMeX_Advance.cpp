@@ -269,7 +269,7 @@ PeleLM::WriteOutflowPlane(int a_step, Real a_time) const
     outflow_box.setBig(m_write_outflow_plane_dir, m_write_outflow_plane_loc);
 
     FArrayBox outflow_fab(outflow_box, BL_SPACEDIM);
-    outflow_fab.setVal(0);
+    outflow_fab.setVal<amrex::RunOn::Device>(0);
     m_leveldata_new[0]->state.copyTo(outflow_fab, 0, 0, AMREX_SPACEDIM);
 
     std::string outflow_name =
