@@ -12,3 +12,8 @@ PeleLM::readProbParm() // NOLINT(readability-make-member-function-const)
   pp.query("u_in", prob_parm->u_in);
   pp.query("u_0", prob_parm->u_0);
 }
+
+void
+PeleLM::freeProbParm()
+{
+}
