@@ -31,7 +31,7 @@ USE_PARTICLES = TRUE
 SPRAY_FUEL_NUM = 3
 
 # PelePhysics
-Chemistry_Model = liquid_fuels_nonreacting
+Chemistry_Model = heptane_5sp
 Eos_Model = Fuego
 Transport_Model = Simple
 

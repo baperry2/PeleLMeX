@@ -1,0 +1,6 @@
+FILE = Nomura_471/input_Nomura_471.inp
+amr.plot_file = "Nomura_1spec/plt"
+
+particles.fuel_species = NC7H16A NC7H16B NC7H16C
+#particles.dep_fuel_species = NC7H16C NC7H16C NC7H16C
+prob.Y_drop = 1.00 0.00 0.00
