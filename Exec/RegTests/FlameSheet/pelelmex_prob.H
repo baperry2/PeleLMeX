@@ -23,6 +23,9 @@ struct MyProbParm : public ProbParmDefault
   int meanFlowDir = 1;
   pele::physics::eos::EosParm<pele::physics::PhysicsType::eos_type> const*
     eosparm;
+  pele::physics::TabulatedFunctionParams* tabfunc_par;
+  const pele::physics::TabulatedFunctionData* tabfunc_dat;
+  int idxT;
 };
 
 struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
@@ -169,6 +172,10 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
       }
       s_ext[VELX + AMREX_SPACEDIM - 1] = pmf_vals[1] * 1e-2;
       s_ext[TEMP] = pmf_vals[0];
+
+      pele::physics::TabulatedFunction tabfunc(prob_parm.tabfunc_dat);
+      amrex::GpuArray<amrex::Real, 2> invals{1.0,1.0};
+      tabfunc.get_value(prob_parm.idxT, invals.data(), s_ext[TEMP]);
 
 #ifdef USE_MANIFOLD_EOS
       for (int n = 0; n < NUM_SPECIES; n++) {
