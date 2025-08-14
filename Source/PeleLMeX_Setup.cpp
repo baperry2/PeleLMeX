@@ -336,7 +336,7 @@ PeleLM::readParameters()
   // -----------------------------------------
   // incompressible vs. low Mach
   pp.query("use_divu", m_has_divu);
-  pp.query("incompressible", m_incompressible);
+  // pp.query("incompressible", m_incompressible);
   if (m_incompressible != 0) {
     m_has_divu = 0;
     m_do_react = 0;

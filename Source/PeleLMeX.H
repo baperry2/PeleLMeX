@@ -1931,7 +1931,7 @@ public:
   std::string m_run_mode = "normal";
 
   // Incompressible ?
-  int m_incompressible = 0;
+  static constexpr int m_incompressible = 0;
   amrex::Real m_rho = -1.0;
   amrex::Real m_mu = -1.0;
 
