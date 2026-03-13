@@ -26,6 +26,9 @@ prob.P_mean = 101325.0
 prob.standoff = -.023
 prob.pertmag = 0.00045
 prob.pertlength = 0.016
+prob.bc_data_prefix = prob.premixer_bc
+prob.premixer_bc.table.filename = bc_inflow_data.ctb
+prob.premixer_bc.table.v = 2
 pmf.datafile = "drm19_pmf.dat"
 
 #---------------------- PeleLMeX CONTROL -------------------------

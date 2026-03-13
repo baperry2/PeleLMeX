@@ -19,6 +19,14 @@ AMREX_ENUM(PmfReferenceFrame, lab, flame, fixed_velocity);
 
 struct MyProbParm : public ProbParmDefault
 {
+  // Tabulated boundary condition data
+  pele::physics::TabulatedFunctionParams* tabfunc_parms;
+  const pele::physics::TabulatedFunctionData* tabfunc_data_d;
+  int idx_out_zmix = -1;
+  int idx_out_xvel = -1;
+  int idx_out_yvel = -1;
+  int idx_out_zvel = -1;
+  
   amrex::Real standoff = 0.0;
   amrex::Real pertmag = 0.0004;
   amrex::Real pertlength = 0.008;
@@ -150,7 +158,7 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
   AMREX_GPU_DEVICE
   AMREX_FORCE_INLINE
   static void bcnormal(
-    const amrex::Real* /*x[AMREX_SPACEDIM]*/,
+    const amrex::Real x[AMREX_SPACEDIM],
     const amrex::CellData<amrex::Real>& /*s_in*/,
     amrex::Real s_ext[NVAR],
     const int idir,
@@ -165,6 +173,14 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
     amrex::Real molefrac[NUM_SPECIES] = {0.0};
     amrex::Real massfrac[NUM_SPECIES] = {0.0};
 
+    pele::physics::TabulatedFunction tabfunc(prob_parm.tabfunc_data_d);
+    amrex::Real yvel, zvel;
+    // Order of input variables is flipped vs. python
+    amrex::Real zy[2] = {x[2], x[1]};
+    tabfunc.get_value(prob_parm.idx_yvel, yz, yvel);
+    tabfunc.get_value(prob_parm.idx_zvel, yz, zvel);
+    printf("values Y %f %f Z %f %f \n", yz[0], yvel, yz[1], zvel);
+    
     auto eos = pele::physics::PhysicsType::eos(prob_parm.eosparm);
     if (sgn == 1) {
       pele::physics::PMF::pmf(pmf_data, prob_lo[idir], prob_lo[idir], pmf_vals);
